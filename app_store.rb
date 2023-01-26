@@ -32,7 +32,7 @@ class AppStore
           }
         end
 
-      [{ name: group.name, internal: group.is_internal_group, testers: testers}]
+      [{ name: group.name, internal: group.is_internal_group, testers: testers }]
     end
   end
 
@@ -45,6 +45,29 @@ class AppStore
         expired: build.expired,
         processing_state: build.processing_state,
         version_string: build.pre_release_version
+      }
+    end
+  end
+
+  def metadata
+    {
+      id: app.id,
+      name: app.name,
+      bundle_id: app.bundle_id,
+      sku: app.sku
+    }
+  end
+
+  def versions
+    app.get_app_store_versions.map do |app_version|
+      {
+        version_name: app_version.version_string,
+        app_store_state: app_version.app_store_state,
+        release_type: app_version.release_type,
+        earliest_release_date: app_version.earliest_release_date,
+        downloadable: app_version.downloadable,
+        created_date: app_version.created_date,
+        build_number: app_version.build.nil? ? nil : app_version.build.version
       }
     end
   end
