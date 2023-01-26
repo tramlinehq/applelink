@@ -17,6 +17,10 @@ beta_group = app.get_beta_groups(filter: { name: "Opinions" }).first
 
 puts beta_group.id
 
+puts "Submitting build for review"
+
+build.post_beta_app_review_submission
+
 puts "Adding build to beta group - #{beta_group.name}"
 
 build.add_beta_groups(beta_groups: [beta_group])
