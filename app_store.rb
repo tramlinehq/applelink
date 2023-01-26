@@ -22,8 +22,8 @@ class AppStore
       api::App.find(bundle_id)
   end
 
-  def groups
-    app.get_beta_groups(includes: "app,betaTesters,builds").map do |group|
+  def groups(internal:)
+    app.get_beta_groups(includes: "betaTesters", filter: { isInternalGroup: to_bool(internal) }).map do |group|
       testers =
         group.beta_testers.map do |tester|
           {
@@ -32,25 +32,33 @@ class AppStore
           }
         end
 
-      builds =
-        group.fetch_builds.map do |build|
-          {
-            build_number: build.version,
-            details: build.get_build_beta_details,
-            uploaded_date: build.uploaded_date,
-            expired: build.expired,
-            processing_state: build.processing_state
-          }
-        end
-
-      [{name: group.name, internal: group.is_internal_group, testers: testers, builds: builds}]
+      [{ name: group.name, internal: group.is_internal_group, testers: testers}]
     end
   end
 
   def builds(v)
-    app.get_builds(filter: { version: v})
+    app.get_builds(includes: "preReleaseVersion", filter: { version: v }).map do |build|
+      {
+        build_number: build.version,
+        details: build.get_build_beta_details,
+        uploaded_date: build.uploaded_date,
+        expired: build.expired,
+        processing_state: build.processing_state,
+        version_string: build.pre_release_version
+      }
+    end
   end
 
-  def review_status(build_id)
+  private
+
+  def to_bool(s)
+    case s.downcase.strip
+    when 'true', 'yes', 'on', 't', '1', 'y', '=='
+      return true
+    when 'nil', 'null'
+      return nil
+    else
+      return false
+    end
   end
 end
