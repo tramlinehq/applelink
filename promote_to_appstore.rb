@@ -10,16 +10,24 @@ app = Spaceship::ConnectAPI::App.find(BID)
 platform = Spaceship::ConnectAPI::Platform.map("IOS")
 version = app.get_edit_app_store_version(platform: platform)
 
+unless version
+  puts "Cannot submit for review - could not find an editable version for '#{platform}'"
+  exit
+end
+
 version_data(version)
 
 build = Spaceship::ConnectAPI::Build.all(
   app_id: app.id,
-  version: "7.0.0",
-  build_number: "1002",
+  version: "7.0.0", # input from user
+  build_number: "1002", # input from user
   platform: platform
 ).first
 
 build_data(build)
+
+puts "Adding build to the current edit version"
+version.select_build(build_id: build.id)
 
 # STEP 1
 # update_export_compliance(options, app, build) -- true/false
@@ -51,6 +59,7 @@ end
 # submission object is of class Spaceship::ConnectAPI::ReviewSubmission
 submission = app.get_ready_review_submission(platform: platform, includes: "items")
 if submission.nil?
+  puts "Creating a new submission"
   submission = app.create_review_submission(platform: platform)
 elsif !submission.items.empty?
   puts "Cannot submit for review - A review submission already exists with items not managed by fastlane. Please cancel or remove items from submission for the App Store Connect website"
