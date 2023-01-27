@@ -181,6 +181,7 @@ GEM
     rack-jwt (0.4.0)
       jwt (~> 2.0)
       rack (>= 1.6.0)
+    rack-unreloader (2.1.0)
     rake (13.0.6)
     representable (3.2.0)
       declarative (< 0.1.0)
@@ -233,11 +234,12 @@ PLATFORMS
   x86_64-linux
 
 DEPENDENCIES
-  dotenv (~> 2.8)
+  dotenv
   fastlane
   hanami-api
   puma
-  rack-jwt (~> 0.4.0)
+  rack-jwt
+  rack-unreloader
 
 RUBY VERSION
    ruby 3.2.0p0

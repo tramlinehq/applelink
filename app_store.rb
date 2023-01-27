@@ -29,7 +29,7 @@ class AppStore
           }
         end
 
-      [{ name: group.name, internal: group.is_internal_group, testers: testers }]
+      { name: group.name, id: group.id, internal: group.is_internal_group, testers: testers }
     end
   end
 
