@@ -3,6 +3,10 @@ require "hanami/api"
 require "./app_store"
 
 class App < Hanami::API
+  get "/ping" do
+    "pong"
+  end
+
   scope "apple/connect/v1/apps/:bundle_id" do
     get "/" do
       AppStore
