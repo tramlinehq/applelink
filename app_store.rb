@@ -1,13 +1,10 @@
 require "spaceship"
 require "json"
+require "./spaceship/wrapper_token"
 
 class AppStore
-  def initialize(bundle_id)
-    token = Spaceship::ConnectAPI::Token.create(
-      key_id: "2NK99Z483A",
-      issuer_id: "54df29f3-21e4-4336-a67a-c1d738af5e80",
-      filepath: File.absolute_path("key.p8")
-    )
+  def initialize(bundle_id, key_id:, issuer_id:, token:)
+    token = Spaceship::WrapperToken.new(key_id:, issuer_id:, text: token)
 
     Spaceship::ConnectAPI.token = token
 
