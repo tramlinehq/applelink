@@ -50,6 +50,7 @@ class AppStore
   end
 
   def metadata
+    return unless app
     {
       id: app.id,
       name: app.name,

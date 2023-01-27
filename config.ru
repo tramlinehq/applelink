@@ -12,7 +12,7 @@ class App < Hanami::API
       AppStore
         .new(params[:bundle_id])
         .metadata
-        .then { |groups| json(groups) }
+        .then { |metadata| metadata ? json(metadata) : [404, "App not found"]}
     end
 
     get "groups" do
