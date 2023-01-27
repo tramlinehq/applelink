@@ -3,7 +3,7 @@ require "hanami/api"
 require "./app_store"
 
 class App < Hanami::API
-  scope "appstoreconnect/:bundle_id" do
+  scope "apple/connect/v1/apps/:bundle_id" do
     get "/" do
       AppStore
         .new(params[:bundle_id])
