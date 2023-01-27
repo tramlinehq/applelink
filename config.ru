@@ -1,8 +1,30 @@
 require "bundler/setup"
+require "dotenv"
 require "hanami/api"
+require "rack/jwt/auth"
+require "rack/jwt"
 require "./app_store"
 
+puts "Loading config..."
+Dotenv.load
+Dotenv.require_keys("AUTH_ISSUER", "AUTH_SECRET", "AUTH_AUD")
+
 class App < Hanami::API
+  jwt_options = {
+    secret: ENV["AUTH_SECRET"],
+    options: {
+      algorithm: 'HS256',
+      verify_expiration: true,
+      iss: ENV["AUTH_ISSUER"],
+      verify_iss: true,
+      aud: ENV["AUTH_AUDIENCE"],
+      verify_aud: true
+    },
+    exclude: %w(/ping)
+  }
+
+  use Rack::JWT::Auth, jwt_options
+
   get "/ping" do
     "pong"
   end
@@ -12,7 +34,7 @@ class App < Hanami::API
       AppStore
         .new(params[:bundle_id])
         .metadata
-        .then { |metadata| metadata ? json(metadata) : [404, "App not found"]}
+        .then { |metadata| metadata ? json(metadata) : [404, "App not found"] }
     end
 
     get "groups" do

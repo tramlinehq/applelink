@@ -6,3 +6,7 @@ ruby "3.2.0"
 gem "puma"
 gem "hanami-api"
 gem "fastlane"
+
+gem "rack-jwt", "~> 0.4.0"
+
+gem "dotenv", "~> 2.8"
