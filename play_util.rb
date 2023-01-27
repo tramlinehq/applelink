@@ -37,5 +37,5 @@ def set_auth_token
     filepath: File.absolute_path("key.p8")
   )
 
-  Spaceship::ConnectAPI.token = token
+  token.text
 end

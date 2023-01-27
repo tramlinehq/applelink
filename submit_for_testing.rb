@@ -1,6 +1,15 @@
 require "./play_util"
+require "./spaceship/wrapper_token"
 
-set_auth_token
+token = set_auth_token
+
+token_obj = Spaceship::WrapperToken.new(
+  key_id: "2NK99Z483A",
+  issuer_id: "54df29f3-21e4-4336-a67a-c1d738af5e80",
+  text: token
+)
+
+Spaceship::ConnectAPI.token = token_obj
 
 # Find app by bundle id
 app = Spaceship::ConnectAPI::App.find(BID)
