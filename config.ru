@@ -32,7 +32,7 @@ class AppleAppV1 < Hanami::API
       AppStore
         .new(params[:bundle_id], **env[:app_store_connect_params])
         .builds(params[:build_number].to_s)
-        .then { |builds| json(builds) }
+        .then { |builds| not(builds.empty?) ? json(builds.first) : halt(404, "Build not found") }
     end
 
     get "versions" do
