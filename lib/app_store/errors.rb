@@ -18,6 +18,6 @@ module AppStore
   end
 
   ERRORS = [AppStore::AppNotFoundError,
-            AppStore::BuildNotFoundError,
-            AppStore::BetaGroupNotFoundError]
+    AppStore::BuildNotFoundError,
+    AppStore::BetaGroupNotFoundError]
 end

@@ -4,13 +4,21 @@ require_relative "../../spaceship/wrapper_token"
 
 module AppStore
   class Connect
-    def initialize(bundle_id, key_id:, issuer_id:, token:)
-      token = Spaceship::WrapperToken.new(key_id:, issuer_id:, text: token)
+    def self.groups(**params) = new(**params).groups(**params.slice(:internal))
 
+    def self.build(**params) = new(**params).build(**params.slice(:build_number))
+
+    def self.send_to_group(**params) = new(**params).send_to_group(**params.slice(:group_id, :build_number))
+
+    def self.metadata(**params) = new(**params).metadata
+
+    def self.versions(**params) = new(**params).versions
+
+    def initialize(**params)
+      token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
       Spaceship::ConnectAPI.token = token
-
       @api = Spaceship::ConnectAPI
-      @bundle_id = bundle_id
+      @bundle_id = params[:bundle_id]
     end
 
     attr_reader :api, :bundle_id
@@ -20,6 +28,7 @@ module AppStore
         api::App.find(bundle_id)
     end
 
+    # no of api calls: 2
     def groups(internal:)
       app.get_beta_groups(includes: "betaTesters", filter: {isInternalGroup: to_bool(internal)}).map do |group|
         testers =
@@ -34,12 +43,14 @@ module AppStore
       end
     end
 
-    def build(v)
-      get_build(v)
+    # no of api calls: 2
+    # FIXME: fail unless "processing_state": "VALID"
+    def build(build_number:)
+      get_build(build_number)
         &.then do |build|
         {
           build_number: build.version,
-          details: build.get_build_beta_details,
+          details: build.build_beta_detail,
           uploaded_date: build.uploaded_date,
           expired: build.expired,
           processing_state: build.processing_state,
@@ -48,7 +59,8 @@ module AppStore
       end
     end
 
-    def add_build_to_group(group_id:, build_number:)
+    # no of api calls: 5-7
+    def send_to_group(group_id:, build_number:)
       raise AppNotFoundError unless app
 
       build = get_build(build_number)
@@ -57,14 +69,22 @@ module AppStore
       group = group(group_id)
       raise BetaGroupNotFoundError.new("Beta group with id #{group_id} not found") unless group
 
-      build_with_details = api::Build.get(build_id: build.id)
+      if build.missing_export_compliance?
+        # FIXME: handle 'Spaceship::UnexpectedResponse: The provided entity includes an attribute with an invalid value - You cannot update when the value is already set.'
+        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
+        build = api::Build.get(build_id: build.id)
+      end
 
-      build_with_details.post_beta_app_review_submission if build_with_details.ready_for_beta_submission? && !group.is_internal_group
-      build_with_details.add_beta_groups(beta_groups: [group])
+      raise StandardError if build.missing_export_compliance?
+
+      build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
+      build.add_beta_groups(beta_groups: [group])
     end
 
+    # no of api calls: 1
     def metadata
       raise AppNotFoundError unless app
+
       {
         id: app.id,
         name: app.name,
@@ -73,6 +93,7 @@ module AppStore
       }
     end
 
+    # no of api calls: 2
     def versions
       app.get_app_store_versions.map do |app_version|
         {
@@ -94,7 +115,7 @@ module AppStore
     end
 
     def get_build(build_number)
-      app.get_builds(includes: "preReleaseVersion", filter: {version: build_number}).first
+      app.get_builds(includes: "preReleaseVersion,buildBetaDetail", filter: {version: build_number}).first
     end
 
     def to_bool(s)

@@ -1,13 +1,18 @@
 # RUN THIS IN EMACS IN restclient-mode
 # Some generic vars
 :bundle-id = com.tramline.ueno
+:key-id = KEY_ID
+:issuer-id = ISSUER_ID
 :my-headers = <<
-Authorization: Bearer <TRAMLINE TOKEN>
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2NzQ5MTUwMTksImV4cCI6MTY3NDkxNjAxOSwiYXVkIjoiYXBwbGVsaW5rIiwiaXNzIjoidHJhbWxpbmUuZGV2In0.k7gXplVDtxeHBz3HQMHEvAs1MfM9493Fl0am7Kh-wV4
 Content-Type: application/json
-X-AppStoreConnect-Key-Id: <KEY ID>
-X-AppStoreConnect-Issuer-Id: <ISSUER ID>
-X-AppStoreConnect-Token: <TOKEN can be fetched using play_util.rb>
+X-AppStoreConnect-Key-Id: :key-id
+X-AppStoreConnect-Issuer-Id: :issuer-id
+X-AppStoreConnect-Token: eyJraWQiOiIyTks5OVo0ODNBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI1NGRmMjlmMy0yMWU0LTQzMzYtYTY3YS1jMWQ3MzhhZjVlODAiLCJpYXQiOjE2NzQ5MTUwMTksImV4cCI6MTY3NDkxNTUxOSwiYXVkIjoiYXBwc3RvcmVjb25uZWN0LXYxIn0.1dd5IPFNHWP9Wn80vRSSYHu1DWtA9NbTnUzreY-HqPieRs0bwQQ4TAUVIxGT3lxWXGUR0OF0km1JVJGTjb21Kg
 #
+
+GET http://127.0.0.1:9292/internal/keys?key_id=:key-id&issuer_id=:issuer-id
+
 
 # Get an app metadata
 GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/
@@ -19,7 +24,7 @@ GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/groups/
 :my-headers
 #
 
-:build-number = 10
+:build-number = 9004
 
 # Get build for an app
 GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/builds/:build-number
@@ -34,6 +39,6 @@ GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/builds/:build-number
 PUT http://127.0.0.1:9292/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
 :my-headers
 {
-"build_number": "10"
+"build_number": "9002"
 }
 #

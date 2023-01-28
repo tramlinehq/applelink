@@ -9,12 +9,21 @@ require "./rack/app_store_connect_headers"
 require "./rack/app_store_auth_handler"
 require "./rack/internal_error_handler"
 require "./lib/app_store/connect"
+require "./lib/internal"
+
+class InternalApp < Hanami::API
+  get "keys" do
+    json(Internal.keys(params))
+  end
+end
 
 class AppleAppV1 < Hanami::API
   use Rack::JWT::Auth, Initializers::JWT.options
   use Rack::AppStoreConnectHeaders
   use Rack::AppStoreAuthHandler
   use Rack::InternalErrorHandler
+
+  DOMAIN = AppStore::Connect
 
   helpers do
     def not_found(message)
@@ -24,42 +33,27 @@ class AppleAppV1 < Hanami::API
 
   scope "/apps/:bundle_id" do
     get "/" do
-      AppStore::Connect
-        .new(params[:bundle_id], **env[:app_store_connect_params])
-        .metadata
-        .then { |metadata| json(metadata) }
+      json(DOMAIN.metadata(**env[:app_store_connect_params].merge(params)))
     end
 
     scope "/groups" do
       get "/" do
-        internal = params[:internal].nil? ? "nil" : params[:internal]
-
-        AppStore::Connect
-          .new(params[:bundle_id], **env[:app_store_connect_params])
-          .groups(internal:)
-          .then { |groups| json(groups) }
+        params[:internal] = params[:internal].nil? ? "nil" : params[:internal]
+        json(DOMAIN.groups(**env[:app_store_connect_params].merge(params)))
       end
 
-      put "/:group_id/add_build" do
-        AppStore::Connect
-          .new(params[:bundle_id], **env[:app_store_connect_params])
-          .add_build_to_group(group_id: params[:group_id], build_number: params[:build_number])
-          .then { |_| status(202) }
+      patch "/:group_id/add_build" do
+        DOMAIN.send_to_group(**env[:app_store_connect_params].merge(params))
+        status(202)
       end
     end
 
     get "builds/:build_number" do
-      AppStore::Connect
-        .new(params[:bundle_id], **env[:app_store_connect_params])
-        .build(params[:build_number].to_s)
-        .then { |build| json(build) }
+      json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
     end
 
     get "versions" do
-      AppStore::Connect
-        .new(params[:bundle_id], **env[:app_store_connect_params])
-        .versions
-        .then { |builds| json(builds) }
+      json(DOMAIN.versions(**env[:app_store_connect_params].merge(params)))
     end
   end
 end
@@ -74,6 +68,7 @@ class App < Hanami::API
   end
 
   mount AppleAppV1.new, at: "/apple/connect/v1"
+  mount InternalApp.new, at: "/internal" if ENV["APP_ENV"].eql?("development")
 end
 
 run App.new

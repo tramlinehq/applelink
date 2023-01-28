@@ -22,7 +22,7 @@ build = Spaceship::ConnectAPI::Build.all(
 
 build_data(build)
 
-beta_group = app.get_beta_groups(filter: { name: "Opinions" }).first
+beta_group = app.get_beta_groups(filter: {name: "Opinions"}).first
 
 puts beta_group.id
 
