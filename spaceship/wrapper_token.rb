@@ -4,6 +4,8 @@ module Spaceship
   class WrapperToken
     class NotImplementedError < StandardError; end
 
+    class TokenExpiredError < StandardError; end
+
     attr_reader :key_id
     attr_reader :issuer_id
     attr_reader :text
@@ -37,7 +39,7 @@ module Spaceship
     end
 
     def refresh!
-      raise NotImplementedError
+      raise TokenExpiredError
     end
 
     def write_key_to_file(_path)

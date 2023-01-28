@@ -16,7 +16,7 @@ def version_data(version)
     earliest_release_date: version.earliest_release_date,
     downloadable: version.downloadable,
     created_date: version.created_date,
-    build_number: version.build.nil? ? nil : version.build.version
+    build_number: version.build&.version
   }
   puts JSON.pretty_generate(version_data)
 end

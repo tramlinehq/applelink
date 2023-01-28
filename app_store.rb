@@ -20,7 +20,7 @@ class AppStore
   end
 
   def groups(internal:)
-    app.get_beta_groups(includes: "betaTesters", filter: { isInternalGroup: to_bool(internal) }).map do |group|
+    app.get_beta_groups(includes: "betaTesters", filter: {isInternalGroup: to_bool(internal)}).map do |group|
       testers =
         group.beta_testers.map do |tester|
           {
@@ -29,12 +29,12 @@ class AppStore
           }
         end
 
-      { name: group.name, id: group.id, internal: group.is_internal_group, testers: testers }
+      {name: group.name, id: group.id, internal: group.is_internal_group, testers: testers}
     end
   end
 
-  def builds(v)
-    app.get_builds(includes: "preReleaseVersion", filter: { version: v }).map do |build|
+  def build(v)
+    app.get_builds(includes: "preReleaseVersion", filter: {version: v}).map do |build|
       {
         build_number: build.version,
         details: build.get_build_beta_details,
@@ -43,7 +43,7 @@ class AppStore
         processing_state: build.processing_state,
         version_string: build.pre_release_version
       }
-    end
+    end.first
   end
 
   def metadata
@@ -65,7 +65,7 @@ class AppStore
         earliest_release_date: app_version.earliest_release_date,
         downloadable: app_version.downloadable,
         created_date: app_version.created_date,
-        build_number: app_version.build.nil? ? nil : app_version.build.version
+        build_number: app_version.build&.version
       }
     end
   end
@@ -74,12 +74,12 @@ class AppStore
 
   def to_bool(s)
     case s.downcase.strip
-    when 'true', 'yes', 'on', 't', '1', 'y', '=='
-      return true
-    when 'nil', 'null'
-      return nil
+    when "true", "yes", "on", "t", "1", "y", "=="
+      true
+    when "nil", "null"
+      nil
     else
-      return false
+      false
     end
   end
 end

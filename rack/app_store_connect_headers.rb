@@ -14,11 +14,11 @@ module Rack
 
     def call(env)
       if any_missing_headers?(env)
-        return [422, { 'Content-Type' => 'text/plain' }, ['Missing required custom headers to fulfill the request.']]
+        return [422, {"Content-Type" => "text/plain"}, ["Missing required custom headers to fulfill the request."]]
       end
 
       env[:app_store_connect_params] = {}
-      HEADERS.keys.each do|header|
+      HEADERS.keys.each do |header|
         env[:app_store_connect_params][HEADERS[header]] = env[header]
       end
 

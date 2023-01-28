@@ -9,3 +9,7 @@ gem "puma"
 gem "hanami-api"
 gem "rack-jwt"
 gem "rack-unreloader"
+
+group :development do
+  gem "standard"
+end

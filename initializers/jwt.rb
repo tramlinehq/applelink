@@ -4,7 +4,7 @@ module Initializers
       {
         secret: ENV["AUTH_SECRET"],
         options: {
-          algorithm: 'HS256',
+          algorithm: "HS256",
           verify_expiration: true,
           iss: ENV["AUTH_ISSUER"],
           verify_iss: true,
