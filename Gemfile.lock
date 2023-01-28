@@ -183,6 +183,8 @@ GEM
     puma (6.0.2)
       nio4r (~> 2.0)
     rack (2.2.6.2)
+    rack-contrib (2.3.0)
+      rack (~> 2.0)
     rack-jwt (0.4.0)
       jwt (~> 2.0)
       rack (>= 1.6.0)
@@ -265,6 +267,7 @@ DEPENDENCIES
   fastlane
   hanami-api
   puma
+  rack-contrib
   rack-jwt
   rack-unreloader
   standard

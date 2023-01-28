@@ -13,5 +13,12 @@ module Rack
 
       [404, headers, [body]]
     end
+
+    def return_unprocessable_error(message)
+      body = {error: message}.to_json
+      headers = {"Content-Type" => "application/json", "Content-Length" => body.bytesize.to_s}
+
+      [422, headers, [body]]
+    end
   end
 end
