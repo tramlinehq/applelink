@@ -39,3 +39,5 @@ def set_auth_token
 
   token.text
 end
+
+puts set_auth_token
