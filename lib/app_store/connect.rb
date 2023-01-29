@@ -75,7 +75,7 @@ module AppStore
         build = api::Build.get(build_id: build.id)
       end
 
-      raise StandardError if build.missing_export_compliance?
+      raise ExportComplianceNotFoundError if build.missing_export_compliance?
 
       build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
       build.add_beta_groups(beta_groups: [group])

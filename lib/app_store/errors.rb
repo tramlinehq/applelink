@@ -17,7 +17,14 @@ module AppStore
     end
   end
 
+  class ExportComplianceNotFoundError < StandardError
+    def initialize(msg = "Missing export compliance attribute for the build.")
+      super
+    end
+  end
+
   ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError]
+    AppStore::BetaGroupNotFoundError,
+    AppStore::ExportComplianceNotFoundError]
 end
