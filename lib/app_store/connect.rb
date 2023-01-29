@@ -50,14 +50,29 @@ module AppStore
         &.then do |build|
         {
           build_number: build.version,
-          details: build.build_beta_detail,
+          beta_internal_state: build.build_beta_detail.internal_build_state,
+          beta_external_state: build.build_beta_detail.external_build_state,
           uploaded_date: build.uploaded_date,
           expired: build.expired,
           processing_state: build.processing_state,
-          version_string: build.pre_release_version
+          version_string: build.pre_release_version.version
         }
       end
     end
+
+    # Build beta external state
+    # PROCESSING
+    # PROCESSING_EXCEPTION
+    # MISSING_EXPORT_COMPLIANCE
+    # READY_FOR_BETA_TESTING -- it was before submission
+    # IN_BETA_TESTING
+    # EXPIRED
+    # READY_FOR_BETA_SUBMISSION
+    # IN_EXPORT_COMPLIANCE_REVIEW
+    # WAITING_FOR_BETA_REVIEW -- state when it has been submitted to apple for review
+    # IN_BETA_REVIEW -- state when they have picked up apple review
+    # BETA_REJECTED
+    # BETA_APPROVED
 
     # no of api calls: 5-7
     def send_to_group(group_id:, build_number:)

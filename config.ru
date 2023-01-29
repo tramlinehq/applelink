@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "hanami/api"
+require "hanami/middleware/body_parser"
 require "rack/jwt/auth"
 require "rack/jwt"
 require "rack/contrib"
@@ -44,7 +45,7 @@ class AppleAppV1 < Hanami::API
 
       patch "/:group_id/add_build" do
         DOMAIN.send_to_group(**env[:app_store_connect_params].merge(params))
-        status(202)
+        status(204)
       end
     end
 
@@ -61,7 +62,8 @@ end
 class App < Hanami::API
   include Initializers::Config
   use Rack::Logger
-  use Rack::JSONBodyParser
+  use Hanami::Middleware::BodyParser, :json
+  # use Rack::JSONBodyParser
 
   get "/ping" do
     "pong"
