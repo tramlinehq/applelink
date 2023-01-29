@@ -44,20 +44,20 @@ module AppStore
     end
 
     # no of api calls: 2
-    # FIXME: fail unless "processing_state": "VALID"
     def build(build_number:)
-      get_build(build_number)
-        &.then do |build|
-        {
-          build_number: build.version,
-          beta_internal_state: build.build_beta_detail.internal_build_state,
-          beta_external_state: build.build_beta_detail.external_build_state,
-          uploaded_date: build.uploaded_date,
-          expired: build.expired,
-          processing_state: build.processing_state,
-          version_string: build.pre_release_version.version
-        }
-      end
+      build = get_build(build_number)
+
+      raise BuildNotFoundError unless build&.processed?
+
+      {
+        build_number: build.version,
+        beta_internal_state: build.build_beta_detail.internal_build_state,
+        beta_external_state: build.build_beta_detail.external_build_state,
+        uploaded_date: build.uploaded_date,
+        expired: build.expired,
+        processing_state: build.processing_state,
+        version_string: build.pre_release_version.version
+      }
     end
 
     # Build beta external state

@@ -23,8 +23,9 @@ module AppStore
     end
   end
 
-  ERRORS = [AppStore::AppNotFoundError,
+  NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError,
-    AppStore::ExportComplianceNotFoundError]
+    AppStore::BetaGroupNotFoundError]
+
+  ERRORS = [AppStore::ExportComplianceNotFoundError]
 end

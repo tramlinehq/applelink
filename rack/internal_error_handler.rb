@@ -15,6 +15,9 @@ module Rack
     rescue *AppStore::ERRORS => e
       env[RACK_LOGGER].error e
       return_unprocessable_error e.message
+    rescue *AppStore::NOT_FOUND_ERRORS => e
+      env[RACK_LOGGER].error e
+      return_not_found_error e.message
     end
   end
 end
