@@ -60,33 +60,24 @@ module AppStore
       }
     end
 
-    # Build beta external state
-    # PROCESSING
-    # PROCESSING_EXCEPTION
-    # MISSING_EXPORT_COMPLIANCE
-    # READY_FOR_BETA_TESTING -- it was before submission
-    # IN_BETA_TESTING
-    # EXPIRED
-    # READY_FOR_BETA_SUBMISSION
-    # IN_EXPORT_COMPLIANCE_REVIEW
-    # WAITING_FOR_BETA_REVIEW -- state when it has been submitted to apple for review
-    # IN_BETA_REVIEW -- state when they have picked up apple review
-    # BETA_REJECTED
-    # BETA_APPROVED
-
-    # no of api calls: 5-7
+    # no of api calls: 4-7
     def send_to_group(group_id:, build_number:)
       raise AppNotFoundError unless app
 
+      # NOTE: have to get the build separately, can not be included in the app
+      # That inclusion is not exposed by Spaceship, but it does exist in apple API, so it can be fixed later
+      # Only two includes in app are: appStoreVersions and prices
       build = get_build(build_number)
       raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build
 
+      # NOTE: same as above
       group = group(group_id)
       raise BetaGroupNotFoundError.new("Beta group with id #{group_id} not found") unless group
 
       if build.missing_export_compliance?
-        # FIXME: handle 'Spaceship::UnexpectedResponse: The provided entity includes an attribute with an invalid value - You cannot update when the value is already set.'
         api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
+        # NOTE: we can potentially skip this re-fetch of build, but this is a safety check to ensure that the
+        # export compliance is set so that the next steps won't blow up
         build = api::Build.get(build_id: build.id)
       end
 
