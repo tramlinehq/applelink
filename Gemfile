@@ -8,6 +8,7 @@ gem "fastlane"
 gem "puma"
 gem "hanami-api"
 gem "rack-jwt"
+gem "sentry-ruby"
 
 group :development do
   gem "standard"

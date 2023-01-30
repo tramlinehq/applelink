@@ -1,9 +1,11 @@
 require "bundler/setup"
 require "hanami/api"
 require "hanami/middleware/body_parser"
+require "sentry-ruby"
 require "rack/jwt/auth"
 require "rack/jwt"
 require "./initializers/config"
+require "./initializers/sentry_config"
 require "./initializers/jwt"
 require "./initializers/env"
 require "./rack/app_store_connect_headers"
@@ -62,6 +64,9 @@ end
 class App < Hanami::API
   include Initializers::Config
   extend Initializers::Env
+  include Initializers::SentryConfig
+
+  use Sentry::Rack::CaptureExceptions
   use Rack::Logger
   use Hanami::Middleware::BodyParser, :json
 
