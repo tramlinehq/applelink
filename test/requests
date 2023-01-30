@@ -11,23 +11,25 @@ X-AppStoreConnect-Issuer-Id: :issuer-id
 X-AppStoreConnect-Token: eyJraWQiOiIyTks5OVo0ODNBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI1NGRmMjlmMy0yMWU0LTQzMzYtYTY3YS1jMWQ3MzhhZjVlODAiLCJpYXQiOjE2NzQ5MTUwMTksImV4cCI6MTY3NDkxNTUxOSwiYXVkIjoiYXBwc3RvcmVjb25uZWN0LXYxIn0.1dd5IPFNHWP9Wn80vRSSYHu1DWtA9NbTnUzreY-HqPieRs0bwQQ4TAUVIxGT3lxWXGUR0OF0km1JVJGTjb21Kg
 #
 
-GET http://127.0.0.1:9292/internal/keys?key_id=:key-id&issuer_id=:issuer-id
+GET http://127.0.0.1:3001/ping
+
+GET http://127.0.0.1:3001/internal/keys?key_id=:key-id&issuer_id=:issuer-id
 
 
 # Get an app metadata
-GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/
+GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/
 :my-headers
 #
 
 # Get beta groups for an app
-GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/groups/
+GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/groups/
 :my-headers
 #
 
-:build-number = 9004
+:build-number = 1002
 
 # Get build for an app
-GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/builds/:build-number
+GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :my-headers
 #
 
@@ -36,7 +38,7 @@ GET http://127.0.0.1:9292/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :group-id = 3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69
 
 # Add build to group
-PUT http://127.0.0.1:9292/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
+PUT http://127.0.0.1:3001/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
 :my-headers
 {
 "build_number": "9002"

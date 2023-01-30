@@ -3,9 +3,9 @@ require "hanami/api"
 require "hanami/middleware/body_parser"
 require "rack/jwt/auth"
 require "rack/jwt"
-require "rack/contrib"
 require "./initializers/config"
 require "./initializers/jwt"
+require "./initializers/env"
 require "./rack/app_store_connect_headers"
 require "./rack/app_store_auth_handler"
 require "./rack/internal_error_handler"
@@ -61,16 +61,13 @@ end
 
 class App < Hanami::API
   include Initializers::Config
+  extend Initializers::Env
   use Rack::Logger
   use Hanami::Middleware::BodyParser, :json
-  # use Rack::JSONBodyParser
 
-  get "/ping" do
-    "pong"
-  end
-
+  get("/ping") { "pong" }
   mount AppleAppV1.new, at: "/apple/connect/v1"
-  mount InternalApp.new, at: "/internal" if ENV["APP_ENV"].eql?("development")
+  mount InternalApp.new, at: "/internal" if development?
 end
 
 run App.new
