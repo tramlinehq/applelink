@@ -1,35 +1,37 @@
+# -*- restclient -*-
 # RUN THIS IN EMACS IN restclient-mode
-# Some generic vars
+
 :bundle-id = com.tramline.ueno
-:key-id = KEY_ID
-:issuer-id = ISSUER_ID
+:key-id = 2NK99Z483A
+:issuer-id = 54df29f3-21e4-4336-a67a-c1d738af5e80
+:port = 4000
 :my-headers = <<
-Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2NzQ5MTUwMTksImV4cCI6MTY3NDkxNjAxOSwiYXVkIjoiYXBwbGVsaW5rIiwiaXNzIjoidHJhbWxpbmUuZGV2In0.k7gXplVDtxeHBz3HQMHEvAs1MfM9493Fl0am7Kh-wV4
+Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2NzQ5OTc4ODksImV4cCI6MTY3NDk5ODg4OSwiYXVkIjoiYXBwbGVsaW5rIiwiaXNzIjoidHJhbWxpbmUuZGV2In0.4aqKNZXWnVodqoixuecN8VEgBLg50wgAYe59xcVGk6M
 Content-Type: application/json
 X-AppStoreConnect-Key-Id: :key-id
 X-AppStoreConnect-Issuer-Id: :issuer-id
-X-AppStoreConnect-Token: eyJraWQiOiIyTks5OVo0ODNBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI1NGRmMjlmMy0yMWU0LTQzMzYtYTY3YS1jMWQ3MzhhZjVlODAiLCJpYXQiOjE2NzQ5MTUwMTksImV4cCI6MTY3NDkxNTUxOSwiYXVkIjoiYXBwc3RvcmVjb25uZWN0LXYxIn0.1dd5IPFNHWP9Wn80vRSSYHu1DWtA9NbTnUzreY-HqPieRs0bwQQ4TAUVIxGT3lxWXGUR0OF0km1JVJGTjb21Kg
+X-AppStoreConnect-Token: eyJraWQiOiIyTks5OVo0ODNBIiwidHlwIjoiSldUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiI1NGRmMjlmMy0yMWU0LTQzMzYtYTY3YS1jMWQ3MzhhZjVlODAiLCJpYXQiOjE2NzQ5OTgxNzIsImV4cCI6MTY3NDk5ODY3MiwiYXVkIjoiYXBwc3RvcmVjb25uZWN0LXYxIn0.CRyRbN7hnGIW1zOPMmDOzfO2gkG1U65y__zzzGYPecTO5ik38J8Cp0NNWMtQW5MZs8quF35L5f03lI_17M0pTw
 #
 
-GET http://127.0.0.1:3001/ping
+GET http://127.0.0.1::port/ping
 
-GET http://127.0.0.1:3001/internal/keys?key_id=:key-id&issuer_id=:issuer-id
+GET http://127.0.0.1::port/internal/keys?key_id=:key-id&issuer_id=:issuer-id
 
 
 # Get an app metadata
-GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/
 :my-headers
 #
 
 # Get beta groups for an app
-GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/groups/
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/groups/
 :my-headers
 #
 
 :build-number = 1002
 
 # Get build for an app
-GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/builds/:build-number
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :my-headers
 #
 
@@ -38,7 +40,7 @@ GET http://127.0.0.1:3001/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :group-id = 3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69
 
 # Add build to group
-PUT http://127.0.0.1:3001/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
+PUT http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
 :my-headers
 {
 "build_number": "9002"
