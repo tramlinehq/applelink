@@ -12,5 +12,5 @@ gem "sentry-ruby"
 
 group :development do
   gem "standard"
-  gem "guard-puma"
+  gem "guard-rack"
 end

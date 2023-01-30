@@ -1,0 +1,1 @@
+RACK_ENV=production bundle exec rackup -s puma config.ru -p 4000

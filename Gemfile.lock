@@ -158,11 +158,10 @@ GEM
       pry (>= 0.13.0)
       shellany (~> 0.0)
       thor (>= 0.18.1)
-    guard-compat (1.2.1)
-    guard-puma (0.8.0)
-      guard (~> 2.14)
-      guard-compat (~> 1.2)
-      puma (>= 4.0, < 7)
+    guard-rack (2.2.1)
+      ffi
+      guard (~> 2.3)
+      spoon
     hanami-api (0.3.0)
       hanami-router (~> 2.0)
     hanami-router (2.0.2)
@@ -259,6 +258,8 @@ GEM
     simctl (1.6.8)
       CFPropertyList
       naturally
+    spoon (0.0.6)
+      ffi
     standard (1.22.1)
       language_server-protocol (~> 3.17.0.2)
       rubocop (= 1.42.0)
@@ -299,7 +300,7 @@ PLATFORMS
 DEPENDENCIES
   dotenv
   fastlane
-  guard-puma
+  guard-rack
   hanami-api
   puma
   rack-jwt

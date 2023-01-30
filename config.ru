@@ -39,6 +39,14 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.metadata(**env[:app_store_connect_params].merge(params)))
     end
 
+    get "builds/:build_number" do
+      json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
+    end
+
+    get "versions" do
+      json(DOMAIN.versions(**env[:app_store_connect_params].merge(params)))
+    end
+
     scope "/groups" do
       get "/" do
         params[:internal] = params[:internal].nil? ? "nil" : params[:internal]
@@ -49,14 +57,6 @@ class AppleAppV1 < Hanami::API
         DOMAIN.send_to_group(**env[:app_store_connect_params].merge(params))
         status(204)
       end
-    end
-
-    get "builds/:build_number" do
-      json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
-    end
-
-    get "versions" do
-      json(DOMAIN.versions(**env[:app_store_connect_params].merge(params)))
     end
   end
 end
