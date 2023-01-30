@@ -1,0 +1,10 @@
+services:
+  - type: pserv
+    name: applelink
+    env: ruby
+    region: frankfurt
+    plan: starter
+    buildCommand: bundle install
+    startCommand: ./bin/prod
+    autoDeploy: false
+    branch: main
