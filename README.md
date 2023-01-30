@@ -4,7 +4,13 @@
 
 ```bash
 bundle install
-bundle exec rackup
+just start
+```
+
+To run linter,
+
+```
+just lint
 ```
 
 ## Usage
