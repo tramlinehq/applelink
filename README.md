@@ -1,7 +1,9 @@
 # applelink
 [![Ruby Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://github.com/testdouble/standard)
 
-APIs that wrap over the App Store Connect API for commonly used patterns using [spaceship](https://spaceship.airforce). Built with [Hanami::API](https://github.com/hanami/api).
+APIs that wrap over the App Store Connect API for commonly used patterns using [spaceship](https://spaceship.airforce). 
+
+Built with [Hanami::API](https://github.com/hanami/api).
 
 ### Running the service
 
