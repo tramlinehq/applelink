@@ -50,6 +50,7 @@ module AppStore
       raise BuildNotFoundError unless build&.processed?
 
       {
+        id: build.id,
         build_number: build.version,
         beta_internal_state: build.build_beta_detail.internal_build_state,
         beta_external_state: build.build_beta_detail.external_build_state,
