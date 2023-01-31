@@ -5,6 +5,6 @@ services:
     region: frankfurt
     plan: starter
     buildCommand: bundle install
-    startCommand: ./bin/prod-foo
+    startCommand: ./bin/prod
     autoDeploy: true
     branch: main
