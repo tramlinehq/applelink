@@ -118,7 +118,7 @@ module AppStore
 
     def group(id)
       group = app.get_beta_groups(filter: {id:}).first
-      raise BetaGroupNotFoundError.new("Beta group with id #{group_id} not found") unless group
+      raise BetaGroupNotFoundError.new("Beta group with id #{id} not found") unless group
       group
     end
 
