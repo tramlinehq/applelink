@@ -1,6 +1,7 @@
 require "spaceship"
 require "json"
 require_relative "../../spaceship/wrapper_token"
+require_relative "../../spaceship/wrapper_error"
 
 module AppStore
   class Connect
@@ -26,6 +27,8 @@ module AppStore
     def app
       @app ||=
         api::App.find(bundle_id)
+      raise AppNotFoundError unless @app
+      @app
     end
 
     # no of api calls: 2
@@ -46,9 +49,6 @@ module AppStore
     # no of api calls: 2
     def build(build_number:)
       build = get_build(build_number)
-
-      raise BuildNotFoundError unless build&.processed?
-
       {
         id: build.id,
         build_number: build.version,
@@ -63,35 +63,22 @@ module AppStore
 
     # no of api calls: 4-7
     def send_to_group(group_id:, build_number:)
-      raise AppNotFoundError unless app
+      execute do
+        # NOTE: have to get the build separately, can not be included in the app
+        # That inclusion is not exposed by Spaceship, but it does exist in apple API, so it can be fixed later
+        # Only two includes in app are: appStoreVersions and prices
+        build = get_build(build_number)
+        # NOTE: same as above
+        group = group(group_id)
+        update_export_compliance(build)
 
-      # NOTE: have to get the build separately, can not be included in the app
-      # That inclusion is not exposed by Spaceship, but it does exist in apple API, so it can be fixed later
-      # Only two includes in app are: appStoreVersions and prices
-      build = get_build(build_number)
-      raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build
-
-      # NOTE: same as above
-      group = group(group_id)
-      raise BetaGroupNotFoundError.new("Beta group with id #{group_id} not found") unless group
-
-      if build.missing_export_compliance?
-        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
-        # NOTE: we can potentially skip this re-fetch of build, but this is a safety check to ensure that the
-        # export compliance is set so that the next steps won't blow up
-        build = api::Build.get(build_id: build.id)
+        build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
+        build.add_beta_groups(beta_groups: [group])
       end
-
-      raise ExportComplianceNotFoundError if build.missing_export_compliance?
-
-      build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
-      build.add_beta_groups(beta_groups: [group])
     end
 
     # no of api calls: 1
     def metadata
-      raise AppNotFoundError unless app
-
       {
         id: app.id,
         name: app.name,
@@ -117,12 +104,34 @@ module AppStore
 
     private
 
+    def update_export_compliance(build)
+      execute do
+        if build.missing_export_compliance?
+          api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
+          updated_build = api::Build.get(build_id: build.id)
+          raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+        end
+      end
+    rescue ExportComplianceAlreadyUpdatedError => e
+      Sentry.capture_exception(e)
+    end
+
     def group(id)
-      app.get_beta_groups(filter: {id:}).first
+      group = app.get_beta_groups(filter: {id:}).first
+      raise BetaGroupNotFoundError.new("Beta group with id #{group_id} not found") unless group
+      group
     end
 
     def get_build(build_number)
-      app.get_builds(includes: "preReleaseVersion,buildBetaDetail", filter: {version: build_number}).first
+      build = app.get_builds(includes: "preReleaseVersion,buildBetaDetail", filter: {version: build_number}).first
+      raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build&.processed?
+      build
+    end
+
+    def execute
+      yield
+    rescue Spaceship::UnexpectedResponse => e
+      raise Spaceship::WrapperError.handle(e)
     end
 
     def to_bool(s)

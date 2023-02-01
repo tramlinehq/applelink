@@ -23,9 +23,13 @@ module AppStore
     end
   end
 
+  class BuildSubmissionForReviewNotAllowedError < StandardError; end
+
+  class ExportComplianceAlreadyUpdatedError < StandardError; end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError]
 
-  ERRORS = [AppStore::ExportComplianceNotFoundError]
+  ERRORS = [AppStore::ExportComplianceNotFoundError, AppStore::BuildSubmissionForReviewNotAllowedError]
 end
