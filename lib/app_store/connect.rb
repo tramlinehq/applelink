@@ -89,7 +89,7 @@ module AppStore
         build = get_build(build_number)
         # NOTE: same as above
         group = group(group_id)
-        update_export_compliance(build)
+        build = update_export_compliance(build)
 
         build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
         build.add_beta_groups(beta_groups: [group])
@@ -153,10 +153,12 @@ module AppStore
           api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
           updated_build = api::Build.get(build_id: build.id)
           raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+          updated_build
         end
       end
     rescue ExportComplianceAlreadyUpdatedError => e
       Sentry.capture_exception(e)
+      build
     end
 
     def group(id)
