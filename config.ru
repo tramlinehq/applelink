@@ -39,6 +39,10 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.metadata(**env[:app_store_connect_params].merge(params)))
     end
 
+    get "/current_status" do
+      json(DOMAIN.current_app_info(**env[:app_store_connect_params].merge(params)))
+    end
+
     get "builds/:build_number" do
       json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
     end

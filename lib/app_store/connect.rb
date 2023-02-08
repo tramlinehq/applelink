@@ -15,6 +15,8 @@ module AppStore
 
     def self.versions(**params) = new(**params).versions
 
+    def self.current_app_info(**params) = new(**params).current_app_info
+
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
       Spaceship::ConnectAPI.token = token
@@ -29,6 +31,33 @@ module AppStore
         api::App.find(bundle_id)
       raise AppNotFoundError unless @app
       @app
+    end
+
+    def current_app_info
+      beta_app_info.push({name: "production", builds: [live_app_info]})
+    end
+
+    def live_app_info
+      live_version = app.get_live_app_store_version
+      {
+        id: live_version.id,
+        version_string: live_version.version_string,
+        status: live_version.app_store_state,
+        release_date: live_version.created_date,
+        build_number: live_version.build.version
+      }
+    end
+
+    def beta_app_info
+      app.get_beta_groups(filter: {isInternalGroup: false}).map do |group|
+        builds = get_builds_for_group(group.id).map do |build|
+          build_data(build)
+            .slice(:id, :build_number, :beta_external_state, :version_string, :uploaded_date)
+            .transform_keys({beta_external_state: :status, uploaded_date: :release_date})
+        end
+
+        {name: group.name, builds: builds}
+      end
     end
 
     # no of api calls: 2
@@ -48,17 +77,7 @@ module AppStore
 
     # no of api calls: 2
     def build(build_number:)
-      build = get_build(build_number)
-      {
-        id: build.id,
-        build_number: build.version,
-        beta_internal_state: build.build_beta_detail.internal_build_state,
-        beta_external_state: build.build_beta_detail.external_build_state,
-        uploaded_date: build.uploaded_date,
-        expired: build.expired,
-        processing_state: build.processing_state,
-        version_string: build.pre_release_version.version
-      }
+      build_data(get_build(build_number))
     end
 
     # no of api calls: 4-7
@@ -70,7 +89,7 @@ module AppStore
         build = get_build(build_number)
         # NOTE: same as above
         group = group(group_id)
-        update_export_compliance(build)
+        build = update_export_compliance(build)
 
         build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
         build.add_beta_groups(beta_groups: [group])
@@ -104,16 +123,42 @@ module AppStore
 
     private
 
+    def get_builds_for_group(group_id, limit = 2)
+      Spaceship::ConnectAPI.get_builds(
+        filter: {app: app.id,
+                 betaGroups: group_id,
+                 expired: "false"},
+        sort: "-uploadedDate",
+        includes: "buildBetaDetail,preReleaseVersion",
+        limit: limit
+      )
+    end
+
+    def build_data(build)
+      {
+        id: build.id,
+        build_number: build.version,
+        beta_internal_state: build.build_beta_detail.internal_build_state,
+        beta_external_state: build.build_beta_detail.external_build_state,
+        uploaded_date: build.uploaded_date,
+        expired: build.expired,
+        processing_state: build.processing_state,
+        version_string: build.pre_release_version.version
+      }
+    end
+
     def update_export_compliance(build)
       execute do
         if build.missing_export_compliance?
           api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
           updated_build = api::Build.get(build_id: build.id)
           raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+          updated_build
         end
       end
     rescue ExportComplianceAlreadyUpdatedError => e
       Sentry.capture_exception(e)
+      build
     end
 
     def group(id)
