@@ -149,12 +149,12 @@ module AppStore
 
     def update_export_compliance(build)
       execute do
-        if build.missing_export_compliance?
-          api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
-          updated_build = api::Build.get(build_id: build.id)
-          raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
-          updated_build
-        end
+        return build unless build.missing_export_compliance?
+
+        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
+        updated_build = api::Build.get(build_id: build.id)
+        raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+        updated_build
       end
     rescue ExportComplianceAlreadyUpdatedError => e
       Sentry.capture_exception(e)
