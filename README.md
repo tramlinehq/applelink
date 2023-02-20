@@ -1,6 +1,7 @@
 # applelink
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat)](https://github.com/tramlinehq/applelink/blob/master/LICENSE)
 [![Ruby Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://github.com/testdouble/standard)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](code_of_conduct.md) 
 
 APIs that wrap over the App Store Connect API for commonly used patterns using [spaceship](https://spaceship.airforce).
 
