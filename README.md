@@ -34,8 +34,8 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 | `Authorization` | Bearer token signed by tramline |
 | `Content-Type` | Most endpoints expect `application/json` |
 | `X-AppStoreConnect-Key-Id` | App Store Connect key id acquired from the portal |
-| `X-AppStoreConnect-Issuer-Id` | App Store Connect issue id acquired from the portal |
-| `X-AppStoreConnect-Token` | App Store Connect expirable JWT signed by tramline |
+| `X-AppStoreConnect-Issuer-Id` | App Store Connect issuer id acquired from the portal |
+| `X-AppStoreConnect-Token` | App Store Connect expirable JWT signed using the key-id and issuer-id |
 
 #### Fetch metadata for an App
 
