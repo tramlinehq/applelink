@@ -2,8 +2,8 @@
 # RUN THIS IN EMACS IN restclient-mode
 
 :bundle-id = com.tramline.ueno
-:key-id = 2NK99Z483A
-:issuer-id = 54df29f3-21e4-4336-a67a-c1d738af5e80
+:key-id = KEY_ID
+:issuer-id = ISSUER_ID
 :port = 4000
 :my-headers = <<
 Authorization: Bearer :auth-token
@@ -47,7 +47,7 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :group-id = 3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69
 
 # Add build to group
-PUT http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
 :my-headers
 {
 "build_number": "9002"

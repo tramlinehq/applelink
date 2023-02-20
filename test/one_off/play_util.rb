@@ -32,8 +32,8 @@ end
 
 def set_auth_token
   token = Spaceship::ConnectAPI::Token.create(
-    key_id: "2NK99Z483A",
-    issuer_id: "54df29f3-21e4-4336-a67a-c1d738af5e80",
+    key_id: "KEY_ID",
+    issuer_id: "ISSUER_ID",
     filepath: File.absolute_path("key.p8")
   )
 
