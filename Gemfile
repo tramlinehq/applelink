@@ -10,7 +10,8 @@ gem "hanami-api"
 gem "rack-jwt"
 gem "sentry-ruby"
 
-group :development do
+group :development, :test do
   gem "standard"
   gem "guard-rack"
+  gem "bundler-audit", "~> 0.9.1"
 end
