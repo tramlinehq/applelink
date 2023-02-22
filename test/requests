@@ -53,3 +53,10 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:gro
 "build_number": "9002"
 }
 #
+
+# Create review submission for an app
+POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release_submissions
+:my-headers
+{
+"build_number": :build-number
+}

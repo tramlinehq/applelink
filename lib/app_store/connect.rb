@@ -17,6 +17,10 @@ module AppStore
 
     def self.current_app_info(**params) = new(**params).current_app_info
 
+    def self.create_release_submission(**params) = new(**params).create_release_submission(**params.slice(:build_number))
+
+    IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
+
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
       Spaceship::ConnectAPI.token = token
@@ -118,6 +122,26 @@ module AppStore
           created_date: app_version.created_date,
           build_number: app_version.build&.version
         }
+      end
+    end
+
+    def create_release_submission(build_number:)
+      execute do
+        build = get_build(build_number)
+
+        version = app.get_edit_app_store_version
+        raise EditVersionNotFoundError.new unless version
+
+        version.select_build(build_id: build.id)
+
+        if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+          raise ReviewAlreadyInProgressError.new
+        end
+
+        # TODO: Handle existing ready for review submissions
+        submission = app.create_review_submission(platform: platform)
+        submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
+        submission.submit_for_review
       end
     end
 

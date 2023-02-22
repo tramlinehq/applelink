@@ -27,9 +27,24 @@ module AppStore
 
   class ExportComplianceAlreadyUpdatedError < StandardError; end
 
+  class EditVersionNotFoundError < StandardError
+    def initialize(msg = "No app store version found to distribute")
+      super
+    end
+  end
+
+  class ReviewAlreadyInProgressError < StandardError
+    def initialize(msg = "There is a review already in progress, can not submit a new review to store.")
+      super
+    end
+  end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError]
 
-  ERRORS = [AppStore::ExportComplianceNotFoundError, AppStore::BuildSubmissionForReviewNotAllowedError]
+  ERRORS = [AppStore::ExportComplianceNotFoundError,
+    AppStore::BuildSubmissionForReviewNotAllowedError,
+    AppStore::EditVersionNotFoundError,
+    AppStore::ReviewAlreadyInProgressError]
 end

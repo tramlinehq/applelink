@@ -51,6 +51,10 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.versions(**env[:app_store_connect_params].merge(params)))
     end
 
+    post "release_submissions" do
+      json(DOMAIN.create_release_submission(**env[:app_store_connect_params].merge(params)))
+    end
+
     scope "/groups" do
       get "/" do
         params[:internal] = params[:internal].nil? ? "nil" : params[:internal]
