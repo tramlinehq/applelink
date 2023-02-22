@@ -55,6 +55,18 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.create_release_submission(**env[:app_store_connect_params].merge(params)))
     end
 
+    scope "/live_release" do
+      patch "pause_rollout" do
+        DOMAIN.pause_phased_release(**env[:app_store_connect_params].merge(params))
+        status(204)
+      end
+
+      patch "resume_rollout" do
+        DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params))
+        status(204)
+      end
+    end
+
     scope "/groups" do
       get "/" do
         params[:internal] = params[:internal].nil? ? "nil" : params[:internal]

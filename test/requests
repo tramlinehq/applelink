@@ -58,5 +58,17 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:gro
 POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release_submissions
 :my-headers
 {
-"build_number": :build-number
+"build_number": :build-number,
+"phased_release": "true"
 }
+#
+
+# Pause phased rollout for the live release
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/pause_rollout
+:my-headers
+#
+
+# Resume phased rollout for the live release
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/resume_rollout
+:my-headers
+#

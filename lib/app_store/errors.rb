@@ -39,6 +39,14 @@ module AppStore
     end
   end
 
+  class PhasedReleaseAlreadyInStateError < StandardError; end
+
+  class PhasedReleaseNotFoundError < StandardError
+    def initialize(msg = "The current live release does not have a staged rollout.")
+      super
+    end
+  end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError]
@@ -47,4 +55,6 @@ module AppStore
     AppStore::BuildSubmissionForReviewNotAllowedError,
     AppStore::EditVersionNotFoundError,
     AppStore::ReviewAlreadyInProgressError]
+
+  CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
 end

@@ -20,5 +20,12 @@ module Rack
 
       [422, headers, [body]]
     end
+
+    def return_conflict_error(message)
+      body = {error: message}.to_json
+      headers = {"Content-Type" => "application/json", "Content-Length" => body.bytesize.to_s}
+
+      [409, headers, [body]]
+    end
   end
 end

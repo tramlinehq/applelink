@@ -19,6 +19,9 @@ module Rack
     rescue *AppStore::NOT_FOUND_ERRORS => e
       log(env, e)
       return_not_found_error e.message
+    rescue *AppStore::CONFLICT_ERRORS => e
+      log(env, e)
+      return_conflict_error e.message
     end
 
     private
