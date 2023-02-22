@@ -59,7 +59,7 @@ POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release_subm
 :my-headers
 {
 "build_number": :build-number,
-"phased_release": "true"
+"phased_release": true
 }
 #
 
@@ -70,5 +70,10 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_releas
 
 # Resume phased rollout for the live release
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/resume_rollout
+:my-headers
+#
+
+# Halt rollout for the live release (remove it from app store)
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/halt_rollout
 :my-headers
 #

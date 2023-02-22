@@ -65,6 +65,11 @@ class AppleAppV1 < Hanami::API
         DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params))
         status(204)
       end
+
+      patch "halt_rollout" do
+        DOMAIN.halt_release(**env[:app_store_connect_params].merge(params))
+        status(204)
+      end
     end
 
     scope "/groups" do

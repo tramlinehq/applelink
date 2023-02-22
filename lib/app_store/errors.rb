@@ -47,6 +47,12 @@ module AppStore
     end
   end
 
+  class AppAlreadyHaltedError < StandardError
+    def initialize(msg = "The app is already removed from sale for the latest version.")
+      super
+    end
+  end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError]
