@@ -5,17 +5,9 @@ module AppStore
     end
   end
 
-  class BuildNotFoundError < StandardError
-    def initialize(msg = "Build not found")
-      super
-    end
-  end
+  class BuildNotFoundError < StandardError; end
 
-  class BetaGroupNotFoundError < StandardError
-    def initialize(msg = "Beta group not found")
-      super
-    end
-  end
+  class BetaGroupNotFoundError < StandardError; end
 
   class ExportComplianceNotFoundError < StandardError
     def initialize(msg = "Missing export compliance attribute for the build.")
@@ -53,9 +45,12 @@ module AppStore
     end
   end
 
+  class SubmissionNotFoundError < StandardError; end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError]
+    AppStore::BetaGroupNotFoundError,
+    AppStore::SubmissionNotFoundError]
 
   ERRORS = [AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,

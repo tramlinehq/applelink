@@ -19,6 +19,8 @@ module AppStore
 
     def self.create_release_submission(**params) = new(**params).create_release_submission(**params.slice(:build_number))
 
+    def self.release_submission(**params) = new(**params).release_submission(**params.slice(:submission_id))
+
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
 
     def self.resume_phased_release(**params) = new(**params).resume_phased_release
@@ -154,6 +156,13 @@ module AppStore
         submission = app.create_review_submission(platform: platform)
         submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
         submission.submit_for_review
+      end
+    end
+
+    # TODO: add more details to this depending on tramline's needs
+    def release_submission(submission_id:)
+      execute do
+        Spaceship::ConnectAPI::ReviewSubmission.get(review_submission_id: submission_id)
       end
     end
 

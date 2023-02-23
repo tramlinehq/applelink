@@ -12,6 +12,10 @@ module Spaceship
       {
         message_matcher: /The phased release already has this value - \/data\/attributes\/phasedReleaseState/,
         decorated_exception: AppStore::PhasedReleaseAlreadyInStateError
+      },
+      {
+        message_matcher: /Resource reviewSubmissions with id (.*) cannot be found/,
+        decorated_exception: AppStore::SubmissionNotFoundError
       }
     ]
 

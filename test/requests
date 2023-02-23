@@ -77,3 +77,10 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_releas
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/halt_rollout
 :my-headers
 #
+
+:submission-id = 3af832fc-a40a-4296-b866-0f43873f42ef
+
+# Get review submission for an app
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release_submissions/:submission-id
+:my-headers
+#

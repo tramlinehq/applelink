@@ -39,7 +39,7 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.metadata(**env[:app_store_connect_params].merge(params)))
     end
 
-    get "/current_status" do
+    get "current_status" do
       json(DOMAIN.current_app_info(**env[:app_store_connect_params].merge(params)))
     end
 
@@ -53,6 +53,10 @@ class AppleAppV1 < Hanami::API
 
     post "release_submissions" do
       json(DOMAIN.create_release_submission(**env[:app_store_connect_params].merge(params)))
+    end
+
+    get "release_submissions/:submission_id" do
+      json(DOMAIN.release_submission(**env[:app_store_connect_params].merge(params)))
     end
 
     scope "/live_release" do
