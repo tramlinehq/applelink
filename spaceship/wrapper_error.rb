@@ -14,10 +14,6 @@ module Spaceship
         decorated_exception: AppStore::PhasedReleaseAlreadyInStateError
       },
       {
-        message_matcher: /Resource reviewSubmissions with id (.*) cannot be found/,
-        decorated_exception: AppStore::SubmissionNotFoundError
-      },
-      {
         message_matcher: /You cannot create a new version of the App in the current state/,
         decorated_exception: AppStore::VersionAlreadyAddedToSubmissionError
       }

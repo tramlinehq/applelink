@@ -57,8 +57,6 @@ module AppStore
     end
   end
 
-  class SubmissionNotFoundError < StandardError; end
-
   class VersionAlreadyAddedToSubmissionError < StandardError; end
 
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
