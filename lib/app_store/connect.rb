@@ -177,43 +177,47 @@ module AppStore
     end
 
     def release(build_number:)
-      filter = {
-        appStoreState: [
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
-        ].join(","),
-        platform: IOS_PLATFORM
-      }
+      execute do
+        filter = {
+          appStoreState: [
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+          ].join(","),
+          platform: IOS_PLATFORM
+        }
 
-      version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
-        .find { |v| v.build&.version == build_number }
+        version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+          .find { |v| v.build&.version == build_number }
 
-      raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
-      version_data(version)
+        raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
+        version_data(version)
+      end
     end
 
+    # TODO: test this API and handle unhandled exceptions
     def start_release(build_number:)
-      filter = {
-        appStoreState: [
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE,
-          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
-        ].join(","),
-        platform: IOS_PLATFORM
-      }
-      version = app.get_app_store_versions(includes: "build", filter: filter)
-        .find { |v| v.build&.version == build_number }
+      execute do
+        filter = {
+          appStoreState: [
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
+          ].join(","),
+          platform: IOS_PLATFORM
+        }
+        version = app.get_app_store_versions(includes: "build", filter: filter)
+          .find { |v| v.build&.version == build_number }
 
-      raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless version
+        raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless version
 
-      version.create_app_store_version_release_request
+        version.create_app_store_version_release_request
+      end
     end
 
     def pause_phased_release
