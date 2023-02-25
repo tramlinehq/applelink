@@ -93,16 +93,16 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live
 #
 
 # Pause phased rollout for the live release
-PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/pause_rollout
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live/pause_rollout
 :my-headers
 #
 
 # Resume phased rollout for the live release
-PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/resume_rollout
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live/resume_rollout
 :my-headers
 #
 
 # Halt rollout for the live release (remove it from app store)
-PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/halt_rollout
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live/halt_rollout
 :my-headers
 #
