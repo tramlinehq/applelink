@@ -125,20 +125,13 @@ module AppStore
       }
     end
 
-    # no of api calls: 2
-    def versions
-      app.get_app_store_versions.map do |app_version|
-        version_data(app_version)
-      end
-    end
-
     def create_app_store_version(build_number:, version:, is_phased_release:, metadata:)
       execute do
         build = get_build(build_number)
 
         app.ensure_version!(version, platform: IOS_PLATFORM)
 
-        version = app.get_edit_app_store_version(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations")
+        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
 
         version.select_build(build_id: build.id)
 
@@ -236,7 +229,6 @@ module AppStore
         live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
         live_version.app_store_version_phased_release.resume
-        # version.create_app_store_version_release_request
       end
     end
 
