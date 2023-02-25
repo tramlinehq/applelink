@@ -143,7 +143,7 @@ module AppStore
         version.select_build(build_id: build.id)
 
         # Updating version to be released manually by tramline, not automatically after approval
-        attributes = {releaseType: "AFTER_APPROVAL"}
+        attributes = {releaseType: "MANUAL"}
         version.update(attributes: attributes)
 
         locale = version.app_store_version_localizations.first
@@ -174,11 +174,9 @@ module AppStore
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
 
-        if submission && !submission.items.empty?
-          raise SubmissionWithItemsExistError
-        else
-          submission = app.create_review_submission(platform: IOS_PLATFORM)
-        end
+        raise SubmissionWithItemsExistError if submission && !submission.items.empty?
+
+        submission ||= app.create_review_submission(platform: IOS_PLATFORM)
 
         submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
         # submission.submit_for_review

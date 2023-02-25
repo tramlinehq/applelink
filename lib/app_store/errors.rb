@@ -59,6 +59,8 @@ module AppStore
 
   class SubmissionNotFoundError < StandardError; end
 
+  class VersionAlreadyAddedToSubmissionError < StandardError; end
+
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError,
@@ -70,7 +72,8 @@ module AppStore
     AppStore::ReviewAlreadyInProgressError,
     AppStore::AppAlreadyHaltedError,
     AppStore::SubmissionWithItemsExistError,
-    AppStore::BuildMismatchError]
+    AppStore::BuildMismatchError,
+    AppStore::VersionAlreadyAddedToSubmissionError]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
 end
