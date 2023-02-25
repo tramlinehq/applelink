@@ -23,6 +23,8 @@ module AppStore
 
     def self.release(**params) = new(**params).release(**params.slice(:build_number))
 
+    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
+
     def self.live_release(**params) = new(**params).live_release
 
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
@@ -32,6 +34,7 @@ module AppStore
     def self.halt_release(**params) = new(**params).halt_release
 
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
+    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations].join(",")
 
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
@@ -156,10 +159,6 @@ module AppStore
       end
     end
 
-    def ensure_correct_build(build, version)
-      raise BuildMismatchError if version.build.version != build.version
-    end
-
     def create_review_submission(build_number:)
       execute do
         build = get_build(build_number)
@@ -173,12 +172,10 @@ module AppStore
           raise ReviewAlreadyInProgressError
         end
 
-        submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
+        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
 
         if submission && !submission.items.empty?
-          # TODO: Handle existing ready for review submissions
-          # raise ReviewAlreadyAdded
-          # remove_existing_app_store_version(submission)
+          raise SubmissionWithItemsExistError
         else
           submission = app.create_review_submission(platform: IOS_PLATFORM)
         end
@@ -187,12 +184,6 @@ module AppStore
         # submission.submit_for_review
       end
     end
-
-    # def remove_existing_app_store_version(submission)
-    #   submission.items.each do |item|
-    #     api.tunes_request_client.delete("reviewSubmissionItems/#{item.id}")
-    #   end
-    # end
 
     def release(build_number:)
       filter = {
@@ -211,11 +202,27 @@ module AppStore
         platform: IOS_PLATFORM
       }
 
-      version = app.get_app_store_versions(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations", filter: filter)
+      version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
         .find { |v| v.build&.version == build_number }
 
       raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
       version_data(version)
+    end
+
+    def start_release(build_number:)
+      filter = {
+        appStoreState: [
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+        ].join(","),
+        platform: IOS_PLATFORM
+      }
+      version = app.get_app_store_versions(includes: "build", filter: filter)
+        .find { |v| v.build&.version == build_number }
+
+      raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless version
+
+      version.create_app_store_version_release_request
     end
 
     def pause_phased_release
@@ -245,13 +252,17 @@ module AppStore
 
     def live_release
       execute do
-        live_version = app.get_live_app_store_version
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise VersionNotFoundError.new("No release live yet.") unless live_version
         version_data(live_version)
       end
     end
 
     private
+
+    def ensure_correct_build(build, version)
+      raise BuildMismatchError if version.build.version != build.version
+    end
 
     def version_data(version)
       {

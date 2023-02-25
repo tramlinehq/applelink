@@ -73,7 +73,7 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/sub
 "build_number": :build-number
 }
 #
-g
+
 # Find a release that can be distributed
 GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release?build_number=:build-number
 :my-headers

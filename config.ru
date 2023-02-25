@@ -57,11 +57,13 @@ class AppleAppV1 < Hanami::API
       end
 
       patch "submit" do
-        json(DOMAIN.create_review_submission(**env[:app_store_connect_params].merge(params)))
+        DOMAIN.create_review_submission(**env[:app_store_connect_params].merge(params))
+        status(204)
       end
 
       patch "start" do
-        json(DOMAIN.start_release(**env[:app_store_connect_params].merge(params)))
+        DOMAIN.start_release(**env[:app_store_connect_params].merge(params))
+        status(204)
       end
 
       get "/" do

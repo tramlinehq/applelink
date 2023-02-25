@@ -37,6 +37,12 @@ module AppStore
     end
   end
 
+  class SubmissionWithItemsExistError < StandardError
+    def initialize(msg = "Cannot submit for review - a review submission already exists with items.")
+      super
+    end
+  end
+
   class PhasedReleaseAlreadyInStateError < StandardError; end
 
   class PhasedReleaseNotFoundError < StandardError
@@ -61,7 +67,10 @@ module AppStore
   ERRORS = [AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,
     AppStore::VersionNotFoundError,
-    AppStore::ReviewAlreadyInProgressError]
+    AppStore::ReviewAlreadyInProgressError,
+    AppStore::AppAlreadyHaltedError,
+    AppStore::SubmissionWithItemsExistError,
+    AppStore::BuildMismatchError]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
 end
