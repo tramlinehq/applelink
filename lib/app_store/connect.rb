@@ -34,7 +34,7 @@ module AppStore
     def self.halt_release(**params) = new(**params).halt_release
 
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
-    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations].join(",")
+    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations].join(",").freeze
 
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
@@ -155,7 +155,7 @@ module AppStore
           })
         end
 
-        version_data(app.get_edit_app_store_version(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations"))
+        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
       end
     end
 
