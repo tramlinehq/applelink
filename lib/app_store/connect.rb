@@ -17,9 +17,13 @@ module AppStore
 
     def self.current_app_info(**params) = new(**params).current_app_info
 
-    def self.create_release_submission(**params) = new(**params).create_release_submission(**params.slice(:build_number))
+    def self.create_app_store_version(**params) = new(**params).create_app_store_version(**params.slice(:build_number, :is_phased_release, :version, :metadata))
 
-    def self.release_submission(**params) = new(**params).release_submission(**params.slice(:submission_id))
+    def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number))
+
+    def self.release(**params) = new(**params).release(**params.slice(:build_number))
+
+    def self.live_release(**params) = new(**params).live_release
 
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
 
@@ -121,49 +125,97 @@ module AppStore
     # no of api calls: 2
     def versions
       app.get_app_store_versions.map do |app_version|
-        {
-          version_name: app_version.version_string,
-          app_store_state: app_version.app_store_state,
-          release_type: app_version.release_type,
-          earliest_release_date: app_version.earliest_release_date,
-          downloadable: app_version.downloadable,
-          created_date: app_version.created_date,
-          build_number: app_version.build&.version
-        }
+        version_data(app_version)
       end
     end
 
-    def create_release_submission(build_number:, phased_release:)
+    def create_app_store_version(build_number:, version:, is_phased_release:, metadata:)
       execute do
         build = get_build(build_number)
 
-        version = app.get_edit_app_store_version
-        raise EditVersionNotFoundError unless version
+        app.ensure_version!(version, platform: IOS_PLATFORM)
+
+        version = app.get_edit_app_store_version(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations")
 
         version.select_build(build_id: build.id)
 
-        if phased_release
+        # Updating version to be released manually by tramline, not automatically after approval
+        attributes = {releaseType: "AFTER_APPROVAL"}
+        version.update(attributes: attributes)
+
+        locale = version.app_store_version_localizations.first
+        locale.update(attributes: {"whatsNew" => metadata[:whats_new], "description" => metadata[:description]})
+
+        if is_phased_release && version.app_store_version_phased_release.nil?
           version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: Spaceship::ConnectAPI::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
         end
 
+        version_data(app.get_edit_app_store_version(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations"))
+      end
+    end
+
+    def ensure_correct_build(build, version)
+      raise BuildMismatchError if version.build.version != build.version
+    end
+
+    def create_review_submission(build_number:)
+      execute do
+        build = get_build(build_number)
+
+        version = app.get_edit_app_store_version(includes: "build")
+        raise VersionNotFoundError unless version
+
+        ensure_correct_build(build, version)
+
         if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
           raise ReviewAlreadyInProgressError
         end
 
-        # TODO: Handle existing ready for review submissions
-        submission = app.create_review_submission(platform: platform)
+        submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
+
+        if submission && !submission.items.empty?
+          # TODO: Handle existing ready for review submissions
+          # raise ReviewAlreadyAdded
+          # remove_existing_app_store_version(submission)
+        else
+          submission = app.create_review_submission(platform: IOS_PLATFORM)
+        end
+
         submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
         submission.submit_for_review
       end
     end
 
-    # TODO: add more details to this depending on tramline's needs
-    def release_submission(submission_id:)
-      execute do
-        Spaceship::ConnectAPI::ReviewSubmission.get(review_submission_id: submission_id)
-      end
+    # def remove_existing_app_store_version(submission)
+    #   submission.items.each do |item|
+    #     api.tunes_request_client.delete("reviewSubmissionItems/#{item.id}")
+    #   end
+    # end
+
+    def release(build_number:)
+      filter = {
+        appStoreState: [
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+          Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+        ].join(","),
+        platform: IOS_PLATFORM
+      }
+
+      version = app.get_app_store_versions(includes: "build,appStoreVersionPhasedRelease,appStoreVersionLocalizations", filter: filter)
+        .find { |v| v.build&.version == build_number }
+
+      raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
+      version_data(version)
     end
 
     def pause_phased_release
@@ -179,6 +231,7 @@ module AppStore
         live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
         live_version.app_store_version_phased_release.resume
+        # version.create_app_store_version_release_request
       end
     end
 
@@ -190,7 +243,29 @@ module AppStore
       end
     end
 
+    def live_release
+      execute do
+        live_version = app.get_live_app_store_version
+        raise VersionNotFoundError.new("No release live yet.") unless live_version
+        version_data(live_version)
+      end
+    end
+
     private
+
+    def version_data(version)
+      {
+        version_name: version.version_string,
+        app_store_state: version.app_store_state,
+        release_type: version.release_type,
+        earliest_release_date: version.earliest_release_date,
+        downloadable: version.downloadable,
+        created_date: version.created_date,
+        build_number: version.build&.version,
+        phased_release: version.app_store_version_phased_release,
+        details: version.app_store_version_localizations&.first
+      }
+    end
 
     def get_builds_for_group(group_id, limit = 2)
       Spaceship::ConnectAPI.get_builds(

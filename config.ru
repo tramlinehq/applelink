@@ -51,28 +51,43 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.versions(**env[:app_store_connect_params].merge(params)))
     end
 
-    post "release_submissions" do
-      json(DOMAIN.create_release_submission(**env[:app_store_connect_params].merge(params)))
-    end
-
-    get "release_submissions/:submission_id" do
-      json(DOMAIN.release_submission(**env[:app_store_connect_params].merge(params)))
-    end
-
-    scope "/live_release" do
-      patch "pause_rollout" do
-        DOMAIN.pause_phased_release(**env[:app_store_connect_params].merge(params))
-        status(204)
+    scope "release" do
+      post "prepare" do
+        json(DOMAIN.create_app_store_version(**env[:app_store_connect_params].merge(params)))
       end
 
-      patch "resume_rollout" do
-        DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params))
-        status(204)
+      patch "submit" do
+        json(DOMAIN.create_review_submission(**env[:app_store_connect_params].merge(params)))
       end
 
-      patch "halt_rollout" do
-        DOMAIN.halt_release(**env[:app_store_connect_params].merge(params))
-        status(204)
+      patch "start" do
+        json(DOMAIN.start_release(**env[:app_store_connect_params].merge(params)))
+      end
+
+      get "/" do
+        params[:build_number] = params[:build_number].nil? ? "nil" : params[:build_number]
+        json(DOMAIN.release(**env[:app_store_connect_params].merge(params)))
+      end
+
+      scope "/live" do
+        get "/" do
+          json(DOMAIN.live_release(**env[:app_store_connect_params].merge(params)))
+        end
+
+        patch "pause_rollout" do
+          DOMAIN.pause_phased_release(**env[:app_store_connect_params].merge(params))
+          status(204)
+        end
+
+        patch "resume_rollout" do
+          DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params))
+          status(204)
+        end
+
+        patch "halt_rollout" do
+          DOMAIN.halt_release(**env[:app_store_connect_params].merge(params))
+          status(204)
+        end
       end
     end
 

@@ -35,7 +35,7 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/groups/
 :my-headers
 #
 
-:build-number = 1002
+:build-number = 9018
 
 # Get build for an app
 GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
@@ -50,17 +50,46 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
 :my-headers
 {
-"build_number": "9002"
+"build_number": :build-number
 }
 #
 
-# Create review submission for an app
-POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release_submissions
+# Prepare a release for submission
+POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/prepare
 :my-headers
 {
 "build_number": :build-number,
-"phased_release": true
+"version": "1.6.2",
+"is_phased_release": true,
+"metadata": { "description": "this is the app store version description",
+              "whats_new": "something new"}
 }
+#
+
+# Submit a release
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/submit
+:my-headers
+{
+"build_number": :build-number
+}
+#
+g
+# Find a release that can be distributed
+GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release?build_number=:build-number
+:my-headers
+#
+
+# Start a release
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/start
+:my-headers
+{
+"build_number": :build-number
+}
+#
+
+#
+GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live
+:my-headers
 #
 
 # Pause phased rollout for the live release
@@ -75,12 +104,5 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_releas
 
 # Halt rollout for the live release (remove it from app store)
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/live_release/halt_rollout
-:my-headers
-#
-
-:submission-id = 3af832fc-a40a-4296-b866-0f43873f42ef
-
-# Get review submission for an app
-GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release_submissions/:submission-id
 :my-headers
 #

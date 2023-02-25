@@ -19,8 +19,14 @@ module AppStore
 
   class ExportComplianceAlreadyUpdatedError < StandardError; end
 
-  class EditVersionNotFoundError < StandardError
+  class VersionNotFoundError < StandardError
     def initialize(msg = "No app store version found to distribute")
+      super
+    end
+  end
+
+  class BuildMismatchError < StandardError
+    def initialize(msg = "The build on the release does not match the build number passed")
       super
     end
   end
@@ -54,7 +60,7 @@ module AppStore
 
   ERRORS = [AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,
-    AppStore::EditVersionNotFoundError,
+    AppStore::VersionNotFoundError,
     AppStore::ReviewAlreadyInProgressError]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
