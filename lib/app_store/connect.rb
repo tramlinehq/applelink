@@ -129,6 +129,8 @@ module AppStore
       execute do
         build = get_build(build_number)
 
+        update_export_compliance(build)
+
         app.ensure_version!(version, platform: IOS_PLATFORM)
 
         version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
