@@ -61,8 +61,7 @@ module AppStore
 
   NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError,
-    AppStore::SubmissionNotFoundError]
+    AppStore::BetaGroupNotFoundError]
 
   ERRORS = [AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,
