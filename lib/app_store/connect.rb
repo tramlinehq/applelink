@@ -260,6 +260,7 @@ module AppStore
 
     def version_data(version)
       {
+        id: version.id,
         version_name: version.version_string,
         app_store_state: version.app_store_state,
         release_type: version.release_type,
