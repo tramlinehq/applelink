@@ -1,53 +1,113 @@
 module AppStore
+  def self.error_as_json(resource, code, message = "")
+    {
+      "resource" => resource.to_s,
+      "code" => code.to_s,
+      "message" => (message unless message.empty?)
+    }.compact
+  end
+
   class AppNotFoundError < StandardError
     def initialize(msg = "App not found")
       super
     end
-  end
 
-  class BuildNotFoundError < StandardError; end
-
-  class BetaGroupNotFoundError < StandardError; end
-
-  class ExportComplianceNotFoundError < StandardError
-    def initialize(msg = "Missing export compliance attribute for the build.")
-      super
+    def as_json
+      AppStore.error_as_json(:app, :not_found)
     end
   end
 
-  class BuildSubmissionForReviewNotAllowedError < StandardError; end
+  class BuildNotFoundError < StandardError
+    def as_json
+      AppStore.error_as_json(:build, :not_found)
+    end
+  end
+
+  class BetaGroupNotFoundError < StandardError
+    def as_json
+      AppStore.error_as_json(:beta_group, :not_found)
+    end
+  end
+
+  class ExportComplianceNotFoundError < StandardError
+    MSG = "Could not update missing export compliance attribute for the build."
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:build, :export_compliance_not_updateable, MSG)
+    end
+  end
+
+  class BuildSubmissionForReviewNotAllowedError < StandardError
+    def as_json
+      AppStore.error_as_json(:release, :review_submission_not_allowed)
+    end
+  end
 
   class ExportComplianceAlreadyUpdatedError < StandardError; end
 
   class VersionNotFoundError < StandardError
-    def initialize(msg = "No app store version found to distribute")
+    MSG = "No app store version found to distribute"
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :not_found, MSG)
     end
   end
 
   class BuildMismatchError < StandardError
-    def initialize(msg = "The build on the release does not match the build number passed")
+    MSG = "The build on the release in app store does not match the build number"
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :build_mismatch, MSG)
     end
   end
 
   class ReviewAlreadyInProgressError < StandardError
-    def initialize(msg = "There is a review already in progress, can not submit a new review to store.")
+    MSG = "There is a review already in progress, can not submit a new review to store"
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :review_in_progress)
     end
   end
 
   class SubmissionWithItemsExistError < StandardError
-    def initialize(msg = "Cannot submit for review - a review submission already exists with items.")
+    MSG = "Cannot submit for review - a review submission already exists with items"
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :review_already_created, MSG)
     end
   end
 
   class PhasedReleaseAlreadyInStateError < StandardError; end
 
   class PhasedReleaseNotFoundError < StandardError
-    def initialize(msg = "The current live release does not have a staged rollout.")
+    MSG = "The current live release does not have a staged rollout"
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :phased_release_not_found, MSG)
     end
   end
 
@@ -57,20 +117,34 @@ module AppStore
     end
   end
 
-  class VersionAlreadyAddedToSubmissionError < StandardError; end
+  class VersionAlreadyAddedToSubmissionError < StandardError
+    MSG = "There is already an app store version in submission, can not start another release preparation"
 
-  NOT_FOUND_ERRORS = [AppStore::AppNotFoundError,
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :release_already_prepared, MSG)
+    end
+  end
+
+  NOT_FOUND_ERRORS = [
+    AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError]
+    AppStore::BetaGroupNotFoundError
+  ]
 
-  ERRORS = [AppStore::ExportComplianceNotFoundError,
+  ERRORS = [
+    AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,
     AppStore::VersionNotFoundError,
     AppStore::ReviewAlreadyInProgressError,
     AppStore::AppAlreadyHaltedError,
     AppStore::SubmissionWithItemsExistError,
     AppStore::BuildMismatchError,
-    AppStore::VersionAlreadyAddedToSubmissionError]
+    AppStore::VersionAlreadyAddedToSubmissionError
+  ]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
 end

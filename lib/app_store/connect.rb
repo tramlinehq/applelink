@@ -174,7 +174,7 @@ module AppStore
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
 
         submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
-        # submission.submit_for_review
+        submission.submit_for_review
       end
     end
 
