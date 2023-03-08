@@ -31,6 +31,8 @@ module AppStore
 
     def self.resume_phased_release(**params) = new(**params).resume_phased_release
 
+    def self.complete_phased_release(**params) = new(**params).complete_phased_release
+
     def self.halt_release(**params) = new(**params).halt_release
 
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
@@ -235,6 +237,14 @@ module AppStore
         live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
         live_version.app_store_version_phased_release.resume
+      end
+    end
+
+    def complete_phased_release
+      execute do
+        live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
+        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+        live_version.app_store_version_phased_release.complete
       end
     end
 

@@ -102,6 +102,11 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/liv
 :my-headers
 #
 
+# Complete phased rollout for the live release
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live/complete_rollout
+:my-headers
+#
+
 # Halt rollout for the live release (remove it from app store)
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/live/halt_rollout
 :my-headers
