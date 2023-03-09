@@ -73,18 +73,15 @@ class AppleAppV1 < Hanami::API
         end
 
         patch "pause_rollout" do
-          DOMAIN.pause_phased_release(**env[:app_store_connect_params].merge(params))
-          status(204)
+          json(DOMAIN.pause_phased_release(**env[:app_store_connect_params].merge(params)))
         end
 
         patch "resume_rollout" do
-          DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params))
-          status(204)
+          json(DOMAIN.resume_phased_release(**env[:app_store_connect_params].merge(params)))
         end
 
         patch "complete_rollout" do
-          DOMAIN.complete_phased_release(**env[:app_store_connect_params].merge(params))
-          status(204)
+          json(DOMAIN.complete_phased_release(**env[:app_store_connect_params].merge(params)))
         end
 
         patch "halt_rollout" do

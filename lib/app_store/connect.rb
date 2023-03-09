@@ -226,25 +226,31 @@ module AppStore
 
     def pause_phased_release
       execute do
-        live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
-        live_version.app_store_version_phased_release.pause
+        updated_phased_release = live_version.app_store_version_phased_release.pause
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
       end
     end
 
     def resume_phased_release
       execute do
-        live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
-        live_version.app_store_version_phased_release.resume
+        updated_phased_release = live_version.app_store_version_phased_release.resume
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
       end
     end
 
     def complete_phased_release
       execute do
-        live_version = app.get_live_app_store_version(includes: "appStoreVersionPhasedRelease")
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
-        live_version.app_store_version_phased_release.complete
+        updated_phased_release = live_version.app_store_version_phased_release.complete
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
       end
     end
 
