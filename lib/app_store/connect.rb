@@ -144,7 +144,13 @@ module AppStore
         version.update(attributes: attributes)
 
         locale = version.app_store_version_localizations.first
-        locale.update(attributes: {"whatsNew" => metadata[:whats_new], "description" => metadata[:description]})
+        locale_params = {"whatsNew" => metadata[:whats_new]}
+
+        unless metadata[:description].nil? || metadata[:description].empty?
+          locale_params["description"] = metadata[:description]
+        end
+
+        locale.update(attributes: locale_params)
 
         if is_phased_release && version.app_store_version_phased_release.nil?
           version.create_app_store_version_phased_release(attributes: {
