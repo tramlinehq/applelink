@@ -34,7 +34,7 @@ class AppleAppV1 < Hanami::API
     end
   end
 
-  scope "/apps/:bundle_id" do
+  scope "apps/:bundle_id" do
     get "/" do
       json(DOMAIN.metadata(**env[:app_store_connect_params].merge(params)))
     end
@@ -67,7 +67,7 @@ class AppleAppV1 < Hanami::API
         json(DOMAIN.release(**env[:app_store_connect_params].merge(params)))
       end
 
-      scope "/live" do
+      scope "live" do
         get "/" do
           json(DOMAIN.live_release(**env[:app_store_connect_params].merge(params)))
         end
@@ -91,13 +91,13 @@ class AppleAppV1 < Hanami::API
       end
     end
 
-    scope "/groups" do
+    scope "groups" do
       get "/" do
         params[:internal] = params[:internal].nil? ? "nil" : params[:internal]
         json(DOMAIN.groups(**env[:app_store_connect_params].merge(params)))
       end
 
-      patch "/:group_id/add_build" do
+      patch ":group_id/add_build" do
         DOMAIN.send_to_group(**env[:app_store_connect_params].merge(params))
         status(204)
       end
@@ -114,9 +114,9 @@ class App < Hanami::API
   use Rack::Logger
   use Hanami::Middleware::BodyParser, :json
 
-  get("/ping") { "pong" }
-  mount AppleAppV1.new, at: "/apple/connect/v1"
-  mount InternalApp.new, at: "/internal" if development?
+  get("ping") { "pong" }
+  mount AppleAppV1.new, at: "apple/connect/v1"
+  mount InternalApp.new, at: "internal" if development?
 end
 
 run App.new

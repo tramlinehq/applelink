@@ -212,7 +212,6 @@ module AppStore
       end
     end
 
-    # TODO: test this API and handle unhandled exceptions
     def start_release(build_number:)
       execute do
         filter = {
