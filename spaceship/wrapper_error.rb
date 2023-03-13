@@ -8,6 +8,14 @@ module Spaceship
       {
         message_matcher: /You cannot update when the value is already set. - \/data\/attributes\/usesNonExemptEncryption/,
         decorated_exception: AppStore::ExportComplianceAlreadyUpdatedError
+      },
+      {
+        message_matcher: /The phased release already has this value - \/data\/attributes\/phasedReleaseState/,
+        decorated_exception: AppStore::PhasedReleaseAlreadyInStateError
+      },
+      {
+        message_matcher: /You cannot create a new version of the App in the current state/,
+        decorated_exception: AppStore::VersionAlreadyAddedToSubmissionError
       }
     ]
 

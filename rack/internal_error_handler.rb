@@ -15,10 +15,13 @@ module Rack
       @app.call env
     rescue *AppStore::ERRORS => e
       log(env, e)
-      return_unprocessable_error e.message
+      return_unprocessable_error e.as_json
     rescue *AppStore::NOT_FOUND_ERRORS => e
       log(env, e)
-      return_not_found_error e.message
+      return_not_found_error e.as_json
+    rescue *AppStore::CONFLICT_ERRORS => e
+      log(env, e)
+      return_conflict_error e.as_json
     end
 
     private

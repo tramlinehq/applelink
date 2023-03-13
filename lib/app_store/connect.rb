@@ -17,6 +17,27 @@ module AppStore
 
     def self.current_app_info(**params) = new(**params).current_app_info
 
+    def self.create_app_store_version(**params) = new(**params).create_app_store_version(**params.slice(:build_number, :is_phased_release, :version, :metadata))
+
+    def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number))
+
+    def self.release(**params) = new(**params).release(**params.slice(:build_number))
+
+    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
+
+    def self.live_release(**params) = new(**params).live_release
+
+    def self.pause_phased_release(**params) = new(**params).pause_phased_release
+
+    def self.resume_phased_release(**params) = new(**params).resume_phased_release
+
+    def self.complete_phased_release(**params) = new(**params).complete_phased_release
+
+    def self.halt_release(**params) = new(**params).halt_release
+
+    IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
+    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations].join(",").freeze
+
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
       Spaceship::ConnectAPI.token = token
@@ -106,22 +127,175 @@ module AppStore
       }
     end
 
-    # no of api calls: 2
-    def versions
-      app.get_app_store_versions.map do |app_version|
-        {
-          version_name: app_version.version_string,
-          app_store_state: app_version.app_store_state,
-          release_type: app_version.release_type,
-          earliest_release_date: app_version.earliest_release_date,
-          downloadable: app_version.downloadable,
-          created_date: app_version.created_date,
-          build_number: app_version.build&.version
+    def create_app_store_version(build_number:, version:, is_phased_release:, metadata:)
+      execute do
+        build = get_build(build_number)
+
+        update_export_compliance(build)
+
+        app.ensure_version!(version, platform: IOS_PLATFORM)
+
+        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
+
+        version.select_build(build_id: build.id)
+
+        # Updating version to be released manually by tramline, not automatically after approval
+        attributes = {releaseType: "MANUAL"}
+        version.update(attributes: attributes)
+
+        locale = version.app_store_version_localizations.first
+        locale_params = {"whatsNew" => metadata[:whats_new]}
+
+        unless metadata[:description].nil? || metadata[:description].empty?
+          locale_params["description"] = metadata[:description]
+        end
+
+        locale.update(attributes: locale_params)
+
+        if is_phased_release && version.app_store_version_phased_release.nil?
+          version.create_app_store_version_phased_release(attributes: {
+            phasedReleaseState: Spaceship::ConnectAPI::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
+          })
+        end
+
+        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
+      end
+    end
+
+    def create_review_submission(build_number:)
+      execute do
+        build = get_build(build_number)
+
+        version = app.get_edit_app_store_version(includes: "build")
+        raise VersionNotFoundError unless version
+
+        ensure_correct_build(build, version)
+
+        if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+          raise ReviewAlreadyInProgressError
+        end
+
+        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
+
+        raise SubmissionWithItemsExistError if submission && !submission.items.empty?
+
+        submission ||= app.create_review_submission(platform: IOS_PLATFORM)
+
+        submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
+        submission.submit_for_review
+      end
+    end
+
+    def release(build_number:)
+      execute do
+        filter = {
+          appStoreState: [
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+          ].join(","),
+          platform: IOS_PLATFORM
         }
+
+        version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+          .find { |v| v.build&.version == build_number }
+
+        raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
+        version_data(version)
+      end
+    end
+
+    def start_release(build_number:)
+      execute do
+        filter = {
+          appStoreState: [
+            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
+          ].join(","),
+          platform: IOS_PLATFORM
+        }
+        version = app.get_app_store_versions(includes: "build", filter: filter)
+          .find { |v| v.build&.version == build_number }
+
+        raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless version
+
+        version.create_app_store_version_release_request
+      end
+    end
+
+    def pause_phased_release
+      execute do
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
+        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+        updated_phased_release = live_version.app_store_version_phased_release.pause
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
+      end
+    end
+
+    def resume_phased_release
+      execute do
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
+        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+        updated_phased_release = live_version.app_store_version_phased_release.resume
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
+      end
+    end
+
+    def complete_phased_release
+      execute do
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
+        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+        updated_phased_release = live_version.app_store_version_phased_release.complete
+        live_version.app_store_version_phased_release = updated_phased_release
+        version_data(live_version)
+      end
+    end
+
+    def halt_release
+      execute do
+        live_version = app.get_live_app_store_version
+        raise AppAlreadyHaltedError unless live_version.app_store_state == Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE
+        app.update(attributes: {allow_removing_from_sale: true})
+      end
+    end
+
+    def live_release
+      execute do
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
+        raise VersionNotFoundError.new("No release live yet.") unless live_version
+        version_data(live_version)
       end
     end
 
     private
+
+    def ensure_correct_build(build, version)
+      raise BuildMismatchError if version.build.version != build.version
+    end
+
+    def version_data(version)
+      {
+        id: version.id,
+        version_name: version.version_string,
+        app_store_state: version.app_store_state,
+        release_type: version.release_type,
+        earliest_release_date: version.earliest_release_date,
+        downloadable: version.downloadable,
+        created_date: version.created_date,
+        build_number: version.build&.version,
+        build_id: version.build&.id,
+        phased_release: version.app_store_version_phased_release,
+        details: version.app_store_version_localizations&.first
+      }
+    end
 
     def get_builds_for_group(group_id, limit = 2)
       Spaceship::ConnectAPI.get_builds(
