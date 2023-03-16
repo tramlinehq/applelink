@@ -48,8 +48,7 @@ module AppStore
     attr_reader :api, :bundle_id
 
     def app
-      @app ||=
-        api::App.find(bundle_id)
+      @app ||= api::App.find(bundle_id)
       raise AppNotFoundError unless @app
       @app
     end
@@ -154,7 +153,7 @@ module AppStore
 
         if is_phased_release && version.app_store_version_phased_release.nil?
           version.create_app_store_version_phased_release(attributes: {
-            phasedReleaseState: Spaceship::ConnectAPI::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
+            phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
         end
 
@@ -190,16 +189,16 @@ module AppStore
       execute do
         filter = {
           appStoreState: [
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+            api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+            api::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+            api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+            api::AppStoreVersion::AppStoreState::REJECTED,
+            api::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+            api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+            api::AppStoreVersion::AppStoreState::INVALID_BINARY,
+            api::AppStoreVersion::AppStoreState::IN_REVIEW,
+            api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+            api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
           ].join(","),
           platform: IOS_PLATFORM
         }
@@ -216,7 +215,7 @@ module AppStore
       execute do
         filter = {
           appStoreState: [
-            Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
+            api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
           ].join(","),
           platform: IOS_PLATFORM
         }
@@ -233,6 +232,8 @@ module AppStore
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+
+        ensure_release_editable(live_version)
         updated_phased_release = live_version.app_store_version_phased_release.pause
         live_version.app_store_version_phased_release = updated_phased_release
         version_data(live_version)
@@ -243,6 +244,8 @@ module AppStore
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+
+        ensure_release_editable(live_version)
         updated_phased_release = live_version.app_store_version_phased_release.resume
         live_version.app_store_version_phased_release = updated_phased_release
         version_data(live_version)
@@ -262,8 +265,21 @@ module AppStore
     def halt_release
       execute do
         live_version = app.get_live_app_store_version
-        raise AppAlreadyHaltedError unless live_version.app_store_state == Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE
-        app.update(attributes: {allow_removing_from_sale: true})
+        raise ReleaseAlreadyHaltedError if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+
+        body = {
+          data: {
+            type: "appAvailabilities",
+            attributes: {availableInNewTerritories: false},
+            relationships: {
+              app: {data: {type: "apps",
+                           id: app.id}},
+              availableTerritories: {data: []}
+            }
+          }
+        }
+
+        api.test_flight_request_client.post("appAvailabilities", body)
       end
     end
 
@@ -279,6 +295,10 @@ module AppStore
 
     def ensure_correct_build(build, version)
       raise BuildMismatchError if version.build.version != build.version
+    end
+
+    def ensure_release_editable(version)
+      raise ReleaseNotEditableError if version.app_store_version_phased_release.phased_release_state == api::AppStoreVersionPhasedRelease::PhasedReleaseState::COMPLETE
     end
 
     def version_data(version)
@@ -298,7 +318,7 @@ module AppStore
     end
 
     def get_builds_for_group(group_id, limit = 2)
-      Spaceship::ConnectAPI.get_builds(
+      api.get_builds(
         filter: {app: app.id,
                  betaGroups: group_id,
                  expired: "false"},
