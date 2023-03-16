@@ -146,8 +146,8 @@ module AppStore
         locale = version.app_store_version_localizations.first
         locale_params = {"whatsNew" => metadata[:whats_new]}
 
-        unless metadata[:description].nil? || metadata[:description].empty?
-          locale_params["description"] = metadata[:description]
+        unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
+          locale_params["promotionalText"] = metadata[:promotional_text]
         end
 
         locale.update(attributes: locale_params)
