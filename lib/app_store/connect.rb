@@ -23,7 +23,7 @@ module AppStore
 
     def self.release(**params) = new(**params).release(**params.slice(:build_number))
 
-    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number, :version))
+    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
 
     def self.live_release(**params) = new(**params).live_release
 
@@ -212,7 +212,7 @@ module AppStore
       end
     end
 
-    def start_release(build_number:, version:)
+    def start_release(build_number:)
       execute do
         filter = {
           appStoreState: [
@@ -224,8 +224,6 @@ module AppStore
           .find { |v| v.build&.version == build_number }
 
         raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless edit_version
-
-        app.ensure_version!(version, platform: IOS_PLATFORM)
 
         edit_version.create_app_store_version_release_request
       end
