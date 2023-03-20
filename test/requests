@@ -66,11 +66,14 @@ POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/prep
 }
 #
 
+:version = "1.2.0"
+
 # Submit a release
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/submit
 :my-headers
 {
-"build_number": :build-number
+"build_number": :build-number,
+"version": :version
 }
 #
 
@@ -83,7 +86,8 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release?build
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/start
 :my-headers
 {
-"build_number": :build-number
+"build_number": :build-number,
+"version": :version
 }
 #
 

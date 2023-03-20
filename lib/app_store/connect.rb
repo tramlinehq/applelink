@@ -19,11 +19,11 @@ module AppStore
 
     def self.create_app_store_version(**params) = new(**params).create_app_store_version(**params.slice(:build_number, :is_phased_release, :version, :metadata))
 
-    def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number))
+    def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number, :version))
 
     def self.release(**params) = new(**params).release(**params.slice(:build_number))
 
-    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
+    def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number, :version))
 
     def self.live_release(**params) = new(**params).live_release
 
@@ -161,14 +161,15 @@ module AppStore
       end
     end
 
-    def create_review_submission(build_number:)
+    def create_review_submission(build_number:, version:)
       execute do
         build = get_build(build_number)
 
-        version = app.get_edit_app_store_version(includes: "build")
-        raise VersionNotFoundError unless version
+        edit_version = app.get_edit_app_store_version(includes: "build")
+        raise VersionNotFoundError unless edit_version
 
-        ensure_correct_build(build, version)
+        app.ensure_version!(version, platform: IOS_PLATFORM)
+        ensure_correct_build(build, edit_version)
 
         if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
           raise ReviewAlreadyInProgressError
@@ -180,7 +181,7 @@ module AppStore
 
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
 
-        submission.add_app_store_version_to_review_items(app_store_version_id: version.id)
+        submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
         submission.submit_for_review
       end
     end
@@ -211,7 +212,7 @@ module AppStore
       end
     end
 
-    def start_release(build_number:)
+    def start_release(build_number:, version:)
       execute do
         filter = {
           appStoreState: [
@@ -219,12 +220,14 @@ module AppStore
           ].join(","),
           platform: IOS_PLATFORM
         }
-        version = app.get_app_store_versions(includes: "build", filter: filter)
+        edit_version = app.get_app_store_versions(includes: "build", filter: filter)
           .find { |v| v.build&.version == build_number }
 
-        raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless version
+        raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless edit_version
 
-        version.create_app_store_version_release_request
+        app.ensure_version!(version, platform: IOS_PLATFORM)
+
+        edit_version.create_app_store_version_release_request
       end
     end
 
