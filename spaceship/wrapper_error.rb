@@ -16,6 +16,10 @@ module Spaceship
       {
         message_matcher: /You cannot create a new version of the App in the current state/,
         decorated_exception: AppStore::VersionAlreadyAddedToSubmissionError
+      },
+      {
+        message_matcher: /The version number has been previously used. - \/data\/attributes\/versionString/,
+        decorated_exception: AppStore::VersionAlreadyExistsError
       }
     ]
 

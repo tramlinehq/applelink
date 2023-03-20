@@ -135,6 +135,18 @@ module AppStore
     end
   end
 
+  class VersionAlreadyExistsError < StandardError
+    MSG = "The build number has been previously used for a release"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :version_already_exists, MSG)
+    end
+  end
+
   class ReleaseNotEditableError < StandardError
     MSG = "The release is now fully live and can not be updated"
 
@@ -160,7 +172,8 @@ module AppStore
     AppStore::ReviewAlreadyInProgressError,
     AppStore::SubmissionWithItemsExistError,
     AppStore::BuildMismatchError,
-    AppStore::VersionAlreadyAddedToSubmissionError
+    AppStore::VersionAlreadyAddedToSubmissionError,
+    AppStore::VersionAlreadyExistsError
   ]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]
