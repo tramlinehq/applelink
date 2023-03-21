@@ -165,14 +165,14 @@ module AppStore
       end
     end
 
-    def create_review_submission(build_number:, version:)
+    def create_review_submission(build_number:, version: nil)
       execute do
         build = get_build(build_number)
 
         edit_version = app.get_edit_app_store_version(includes: "build")
         raise VersionNotFoundError unless edit_version
 
-        app.ensure_version!(version, platform: IOS_PLATFORM)
+        app.ensure_version!(version, platform: IOS_PLATFORM) if version
         ensure_correct_build(build, edit_version)
 
         if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
