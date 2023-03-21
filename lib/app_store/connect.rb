@@ -143,7 +143,11 @@ module AppStore
         version.update(attributes: attributes)
 
         locale = version.app_store_version_localizations.first
-        locale_params = {"whatsNew" => metadata[:whats_new]}
+        locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
+          {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
+        else
+          {"whatsNew" => metadata[:whats_new]}
+        end
 
         unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
           locale_params["promotionalText"] = metadata[:promotional_text]
