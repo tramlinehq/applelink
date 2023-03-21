@@ -159,6 +159,12 @@ module AppStore
     end
   end
 
+  class UnexpectedAppstoreError < StandardError
+    def as_json
+      AppStore.error_as_json(:unknown, :unknown, message)
+    end
+  end
+
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
@@ -173,7 +179,8 @@ module AppStore
     AppStore::SubmissionWithItemsExistError,
     AppStore::BuildMismatchError,
     AppStore::VersionAlreadyAddedToSubmissionError,
-    AppStore::VersionAlreadyExistsError
+    AppStore::VersionAlreadyExistsError,
+    AppStore::UnexpectedAppstoreError
   ]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]

@@ -32,7 +32,7 @@ module Spaceship
     end
 
     def handle
-      return exception if match.nil?
+      return AppStore::UnexpectedAppstoreError.new(exception) if match.nil?
       match[:decorated_exception].new message
     end
 
