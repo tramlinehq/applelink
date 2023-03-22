@@ -13,8 +13,6 @@ module AppStore
 
     def self.metadata(**params) = new(**params).metadata
 
-    def self.versions(**params) = new(**params).versions
-
     def self.current_app_info(**params) = new(**params).current_app_info
 
     def self.create_app_store_version(**params) = new(**params).create_app_store_version(**params.slice(:build_number, :is_phased_release, :version, :metadata))
@@ -53,10 +51,12 @@ module AppStore
       @app
     end
 
+    # no of api calls: 2 + n (n = number of beta groups)
     def current_app_info
       beta_app_info.push({name: "production", builds: [live_app_info]})
     end
 
+    # no of api calls: 2
     def live_app_info
       live_version = app.get_live_app_store_version
       {
@@ -68,6 +68,7 @@ module AppStore
       }
     end
 
+    # no of api calls: 1 + n (n = number of beta groups)
     def beta_app_info
       app.get_beta_groups(filter: {isInternalGroup: false}).map do |group|
         builds = get_builds_for_group(group.id).map do |build|
@@ -126,6 +127,7 @@ module AppStore
       }
     end
 
+    # no of api calls: 7-11
     def create_app_store_version(build_number:, version:, is_phased_release:, metadata:)
       execute do
         build = get_build(build_number)
@@ -134,15 +136,15 @@ module AppStore
 
         app.ensure_version!(version, platform: IOS_PLATFORM)
 
-        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
+        edit_version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
 
-        version.select_build(build_id: build.id)
+        edit_version.select_build(build_id: build.id)
 
         # Updating version to be released manually by tramline, not automatically after approval
         attributes = {releaseType: "MANUAL"}
-        version.update(attributes: attributes)
+        edit_version.update(attributes: attributes)
 
-        locale = version.app_store_version_localizations.first
+        locale = edit_version.app_store_version_localizations.first
         locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
           {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
         else
@@ -156,7 +158,7 @@ module AppStore
         locale.update(attributes: locale_params)
 
         if is_phased_release && version.app_store_version_phased_release.nil?
-          version.create_app_store_version_phased_release(attributes: {
+          edit_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
         end
@@ -165,6 +167,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 9-10
     def create_review_submission(build_number:, version: nil)
       execute do
         build = get_build(build_number)
@@ -190,6 +193,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 2
     def release(build_number:)
       execute do
         filter = {
@@ -216,6 +220,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 2
     def start_release(build_number:)
       execute do
         filter = {
@@ -233,6 +238,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 3
     def pause_phased_release
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
@@ -245,6 +251,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 3
     def resume_phased_release
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
@@ -257,6 +264,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 3
     def complete_phased_release
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
@@ -267,6 +275,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 3
     def halt_release
       execute do
         live_version = app.get_live_app_store_version
@@ -288,6 +297,7 @@ module AppStore
       end
     end
 
+    # no of api calls: 2
     def live_release
       execute do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
