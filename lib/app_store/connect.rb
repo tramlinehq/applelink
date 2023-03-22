@@ -279,7 +279,9 @@ module AppStore
     def halt_release
       execute do
         live_version = app.get_live_app_store_version
-        raise ReleaseAlreadyHaltedError if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+        if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+          raise ReleaseAlreadyHaltedError
+        end
 
         body = {
           data: {
@@ -313,7 +315,9 @@ module AppStore
     end
 
     def ensure_release_editable(version)
-      raise ReleaseNotEditableError if version.app_store_version_phased_release.phased_release_state == api::AppStoreVersionPhasedRelease::PhasedReleaseState::COMPLETE
+      if version.app_store_version_phased_release.phased_release_state == api::AppStoreVersionPhasedRelease::PhasedReleaseState::COMPLETE
+        raise ReleaseNotEditableError
+      end
     end
 
     def version_data(version)
