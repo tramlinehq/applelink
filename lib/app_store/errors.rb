@@ -111,9 +111,15 @@ module AppStore
     end
   end
 
-  class AppAlreadyHaltedError < StandardError
-    def initialize(msg = "The app is already removed from sale for the latest version.")
+  class ReleaseAlreadyHaltedError < StandardError
+    MSG = "The release is already removed from sale for the latest version."
+
+    def initialize(msg = MSG)
       super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :release_already_halted, MSG)
     end
   end
 
@@ -129,6 +135,36 @@ module AppStore
     end
   end
 
+  class VersionAlreadyExistsError < StandardError
+    MSG = "The build number has been previously used for a release"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :version_already_exists, MSG)
+    end
+  end
+
+  class ReleaseNotEditableError < StandardError
+    MSG = "The release is now fully live and can not be updated"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :release_fully_live, MSG)
+    end
+  end
+
+  class UnexpectedAppstoreError < StandardError
+    def as_json
+      AppStore.error_as_json(:unknown, :unknown, message)
+    end
+  end
+
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
@@ -140,11 +176,12 @@ module AppStore
     AppStore::BuildSubmissionForReviewNotAllowedError,
     AppStore::VersionNotFoundError,
     AppStore::ReviewAlreadyInProgressError,
-    AppStore::AppAlreadyHaltedError,
     AppStore::SubmissionWithItemsExistError,
     AppStore::BuildMismatchError,
-    AppStore::VersionAlreadyAddedToSubmissionError
+    AppStore::VersionAlreadyAddedToSubmissionError,
+    AppStore::VersionAlreadyExistsError,
+    AppStore::UnexpectedAppstoreError
   ]
 
-  CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError]
+  CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]
 end

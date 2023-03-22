@@ -61,16 +61,19 @@ POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/prep
 "build_number": :build-number,
 "version": "1.6.2",
 "is_phased_release": true,
-"metadata": { "description": "this is the app store version description",
+"metadata": { "promotional_text": "this is the app store version promo text",
               "whats_new": "something new"}
 }
 #
+
+:version = "1.2.0"
 
 # Submit a release
 PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/submit
 :my-headers
 {
-"build_number": :build-number
+"build_number": :build-number,
+"version": :version
 }
 #
 
