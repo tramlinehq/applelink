@@ -157,7 +157,7 @@ module AppStore
 
         locale.update(attributes: locale_params)
 
-        if is_phased_release && version.app_store_version_phased_release.nil?
+        if is_phased_release && edit_version.app_store_version_phased_release.nil?
           edit_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
