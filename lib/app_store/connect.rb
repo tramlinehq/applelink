@@ -15,7 +15,7 @@ module AppStore
 
     def self.current_app_info(**params) = new(**params).current_app_info
 
-    def self.create_app_store_version(**params) = new(**params).create_app_store_version(**params.slice(:build_number, :is_phased_release, :version, :is_force, :metadata))
+    def self.prepare_release(**params) = new(**params).prepare_release(**params.slice(:build_number, :is_phased_release, :version, :is_force, :metadata))
 
     def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number, :version))
 
@@ -128,15 +128,15 @@ module AppStore
     end
 
     # no of api calls: 5-11
-    def create_app_store_version(build_number:, version:, is_phased_release:, metadata:, is_force: false)
+    def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false)
       execute do
         build = get_build(build_number)
         update_export_compliance(build)
 
-        log "Ensure an editable app store version", {version: version, build: build.version}
+        log_debug "Ensure an editable app store version", {version: version, build: build.version}
         latest_version = ensure_editable_version(version, is_force)
 
-        log "Updating app store version details", {app_store_version: latest_version.to_json, version: version, build: build.version}
+        log_debug "Updating app store version details", {app_store_version: latest_version.to_json, version: version, build: build.version}
         update_version_details!(latest_version, version, build)
 
         locale = latest_version.app_store_version_localizations.first
@@ -156,6 +156,8 @@ module AppStore
           latest_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
+        elsif !is_phased_release && latest_version.app_store_version_phased_release.present?
+          latest_version.app_store_version_phased_release.delete!
         end
 
         version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
@@ -314,48 +316,55 @@ module AppStore
       when api::AppStoreVersion::AppStoreState::READY_FOR_SALE,
         api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
 
-        log "No editable app store version found, creating a new one"
-        attributes = {versionString: version, platform: IOS_PLATFORM}
-        latest_version = api.post_app_store_version(app_id: app.id, attributes: attributes)
+        return create_app_store_version(version)
 
       when api::AppStoreVersion::AppStoreState::REJECTED
-        log "Found rejected app store version", latest_version.to_json
+        log_debug "Found rejected app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
 
         submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
-        log "Deleting rejected app store version submission", submission.to_json
+        log_debug "Deleting rejected app store version submission", submission.to_json
         submission.cancel_submission
+        return create_app_store_version(version)
 
       when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
         api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
         api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
         api::AppStoreVersion::AppStoreState::IN_REVIEW
 
-        log "Found releasable app store version", latest_version.to_json
+        log_debug "Found releasable app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
         # NOTE: Apple has deprecated this API, but even the appstore connect dashboard uses the deprecated API to do this action
         # https://developer.apple.com/documentation/appstoreconnectapi/delete_an_app_store_version_submission
-        log "Cancelling the release for releasable app store version", latest_version.to_json
+        log_debug "Cancelling the release for releasable app store version", latest_version.to_json
         latest_version.app_store_version_submission.delete!
+
+      when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION
+
+        log_debug "Found draft app store version", latest_version.to_json
+        raise VersionAlreadyAddedToSubmissionError unless is_force
       end
 
       latest_version
     end
 
-    def update_version_details!(app_store_version, version, build)
-      attributes = {}
-      relationships = nil
+    def create_app_store_version(version)
+      log_debug "Creating a new app store version"
+      attributes = {versionString: version, platform: IOS_PLATFORM}
+      api.post_app_store_version(app_id: app.id, attributes: attributes)
+      app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
+    end
 
-      if app_store_version.release_type != "MANUAL"
-        # Updating version to be released manually by tramline, not automatically after approval
-        attributes["releaseType"] = "MANUAL"
-      end
+    def update_version_details!(app_store_version, version, build)
+      # Updating version to be released manually by tramline, not automatically after approval
+      attributes = {releaseType: "MANUAL"}
+      relationships = nil
 
       if version != app_store_version.version_string
         attributes["versionString"] = version
       end
 
-      if app_store_version.build.id != build.id
+      if app_store_version.build&.id != build.id
         relationships = {
           build: {
             data: {
@@ -366,20 +375,19 @@ module AppStore
         }
       end
 
-      if relationships || !attributes.empty?
-        body = {
-          data: {
-            type: "appStoreVersions",
-            id: app_store_version.id,
-            attributes: (attributes unless attributes.empty?),
-            relationships: (relationships unless relationships.nil?)
-          }
+      body = {
+        data: {
+          type: "appStoreVersions",
+          id: app_store_version.id,
+          attributes: attributes,
+          relationships: (relationships unless relationships.nil?)
         }
+      }
 
-        body.compact!
+      body.compact!
 
-        return api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
-      end
+      log_debug "Updating app store version details with ", body
+      api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
 
       app_store_version
     end
@@ -477,7 +485,7 @@ module AppStore
       end
     end
 
-    def log(*args)
+    def log_debug(*args)
       puts(*args)
     end
   end
