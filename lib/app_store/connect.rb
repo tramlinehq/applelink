@@ -128,7 +128,7 @@ module AppStore
     end
 
     # no of api calls: 5-11
-    def create_app_store_version(build_number:, version:, is_phased_release:, is_force: false, metadata:)
+    def create_app_store_version(build_number:, version:, is_phased_release:, metadata:, is_force: false)
       execute do
         build = get_build(build_number)
         update_export_compliance(build)
