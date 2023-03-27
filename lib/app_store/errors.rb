@@ -159,6 +159,18 @@ module AppStore
     end
   end
 
+  class ReleaseNotCancelableError < StandardError
+    MSG = "The release is not in a state to be cancelled"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :release_not_cancelable, MSG)
+    end
+  end
+
   class UnexpectedAppstoreError < StandardError
     def as_json
       AppStore.error_as_json(:unknown, :unknown, message)
@@ -180,7 +192,8 @@ module AppStore
     AppStore::BuildMismatchError,
     AppStore::VersionAlreadyAddedToSubmissionError,
     AppStore::VersionAlreadyExistsError,
-    AppStore::UnexpectedAppstoreError
+    AppStore::UnexpectedAppstoreError,
+    AppStore::ReleaseNotCancelableError
   ]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]

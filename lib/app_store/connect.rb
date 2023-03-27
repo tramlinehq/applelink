@@ -23,6 +23,8 @@ module AppStore
 
     def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
 
+    def self.cancel_release(**params) = new(**params).cancel_release(**params.slice(:build_number))
+
     def self.live_release(**params) = new(**params).live_release
 
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
@@ -242,6 +244,37 @@ module AppStore
         raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless edit_version
 
         edit_version.create_app_store_version_release_request
+      end
+    end
+
+    # no of api calls: 2
+    def cancel_release(build_number:)
+      execute do
+        edit_version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES)
+          .find { |v| v.build&.version == build_number }
+
+        raise VersionNotFoundError.new("Current release not found for the build number - #{build_number}") unless edit_version
+
+        case edit_version.app_store_state
+        when api::AppStoreVersion::AppStoreState::REJECTED
+
+          submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+          log_debug "Deleting rejected app store version submission", submission.to_json
+          submission.cancel_submission
+
+        when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+          api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
+          api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+          api::AppStoreVersion::AppStoreState::IN_REVIEW
+
+          # NOTE: Apple has deprecated this API, but even the appstore connect dashboard uses the deprecated API to do this action
+          # https://developer.apple.com/documentation/appstoreconnectapi/delete_an_app_store_version_submission
+          log_debug "Cancelling the release for releasable app store version", edit_version.to_json
+          edit_version.app_store_version_submission.delete!
+
+        else
+          raise ReleaseNotCancelableError
+        end
       end
     end
 

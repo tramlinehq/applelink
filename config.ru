@@ -62,6 +62,11 @@ class AppleAppV1 < Hanami::API
         status(204)
       end
 
+      patch "cancel" do
+        DOMAIN.cancel_release(**env[:app_store_connect_params].merge(params))
+        status(204)
+      end
+
       get "/" do
         params[:build_number] = params[:build_number].nil? ? "nil" : params[:build_number]
         json(DOMAIN.release(**env[:app_store_connect_params].merge(params)))
