@@ -127,17 +127,22 @@ module AppStore
       }
     end
 
-    # no of api calls: 5-11
+    # no of api calls: 6-10
     def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false)
       execute do
         build = get_build(build_number)
         update_export_compliance(build)
 
         log_debug "Ensure an editable app store version", {version: version, build: build.version}
-        latest_version = ensure_editable_version(version, is_force)
+        latest_version = ensure_editable_version(is_force)
 
-        log_debug "Updating app store version details", {app_store_version: latest_version.to_json, version: version, build: build.version}
-        update_version_details!(latest_version, version, build)
+        if latest_version
+          log_debug "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
+          update_version_details!(latest_version, version, build)
+        else
+          log_debug "There is no editable app store version, creating it", {version: version, build: build.version}
+          latest_version = create_app_store_version(version, build)
+        end
 
         locale = latest_version.app_store_version_localizations.first
         locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
@@ -150,13 +155,16 @@ module AppStore
           locale_params["promotionalText"] = metadata[:promotional_text]
         end
 
+        log_debug "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
         locale.update(attributes: locale_params)
 
         if is_phased_release && latest_version.app_store_version_phased_release.nil?
+          log_debug "Creating phased release for the app store version"
           latest_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
-        elsif !is_phased_release && latest_version.app_store_version_phased_release.present?
+        elsif !is_phased_release && latest_version.app_store_version_phased_release
+          log_debug "Removing phased release from the app store version"
           latest_version.app_store_version_phased_release.delete!
         end
 
@@ -309,14 +317,15 @@ module AppStore
 
     private
 
-    def ensure_editable_version(version, is_force)
+    # no of api calls: 1-3
+    def ensure_editable_version(is_force)
       latest_version = app.get_latest_app_store_version(includes: VERSION_DATA_INCLUDES)
 
       case latest_version.app_store_state
       when api::AppStoreVersion::AppStoreState::READY_FOR_SALE,
         api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
 
-        return create_app_store_version(version)
+        return
 
       when api::AppStoreVersion::AppStoreState::REJECTED
         log_debug "Found rejected app store version", latest_version.to_json
@@ -325,7 +334,7 @@ module AppStore
         submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
         log_debug "Deleting rejected app store version submission", submission.to_json
         submission.cancel_submission
-        return create_app_store_version(version)
+        return
 
       when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
         api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
@@ -348,23 +357,42 @@ module AppStore
       latest_version
     end
 
-    def create_app_store_version(version)
+    # no of api calls: 2
+    def create_app_store_version(version, build)
       log_debug "Creating a new app store version"
-      attributes = {versionString: version, platform: IOS_PLATFORM}
-      api.post_app_store_version(app_id: app.id, attributes: attributes)
+      body = build_app_store_version_attributes(version, build)
+      body[:relationships][:app] = {data: {type: "apps", id: app.id}}
+      body[:attributes][:platform] = IOS_PLATFORM
+
+      api.tunes_request_client.post("appStoreVersions", body)
       app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
     end
 
+    # no of api calls: 1
     def update_version_details!(app_store_version, version, build)
+      body = {
+        data: {
+          type: "appStoreVersions",
+          id: app_store_version.id
+        }.merge(build_app_store_version_attributes(version, build, app_store_version))
+      }
+
+      log_debug "Updating app store version details with ", body
+      api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
+
+      app_store_version
+    end
+
+    def build_app_store_version_attributes(version, build, app_store_version = nil)
       # Updating version to be released manually by tramline, not automatically after approval
       attributes = {releaseType: "MANUAL"}
       relationships = nil
 
-      if version != app_store_version.version_string
-        attributes["versionString"] = version
+      if version != app_store_version&.version_string
+        attributes[:versionString] = version
       end
 
-      if app_store_version.build&.id != build.id
+      if app_store_version&.build&.id != build.id
         relationships = {
           build: {
             data: {
@@ -376,20 +404,11 @@ module AppStore
       end
 
       body = {
-        data: {
-          type: "appStoreVersions",
-          id: app_store_version.id,
-          attributes: attributes,
-          relationships: (relationships unless relationships.nil?)
-        }
+        attributes: attributes,
+        relationships: (relationships unless relationships.nil?)
       }
-
       body.compact!
-
-      log_debug "Updating app store version details with ", body
-      api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
-
-      app_store_version
+      body
     end
 
     def ensure_correct_build(build, version)
