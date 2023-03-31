@@ -1,3 +1,5 @@
+#\ -q
+
 require "bundler/setup"
 require "hanami/api"
 require "hanami/middleware/body_parser"
@@ -11,6 +13,7 @@ require "./initializers/env"
 require "./rack/app_store_connect_headers"
 require "./rack/app_store_auth_handler"
 require "./rack/internal_error_handler"
+require "./rack/rack_ougai_logger"
 require "./lib/app_store/connect"
 require "./lib/internal"
 
@@ -112,8 +115,9 @@ class App < Hanami::API
   extend Initializers::Env
   include Initializers::SentryConfig
 
+  use Rack::Ougai::Logger
+  use Rack::Ougai::RequestLogger
   use Sentry::Rack::CaptureExceptions
-  use Rack::Logger
   use Hanami::Middleware::BodyParser, :json
 
   get("ping") { "pong" }
