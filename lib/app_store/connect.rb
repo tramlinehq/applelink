@@ -2,7 +2,6 @@ require "spaceship"
 require "json"
 require_relative "../../spaceship/wrapper_token"
 require_relative "../../spaceship/wrapper_error"
-require_relative "../../lib/log.rb"
 
 module AppStore
   class Connect
