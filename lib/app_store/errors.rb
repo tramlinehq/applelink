@@ -165,6 +165,8 @@ module AppStore
     end
   end
 
+  class VersionNotEditableError < StandardError; end
+
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
@@ -180,7 +182,8 @@ module AppStore
     AppStore::BuildMismatchError,
     AppStore::VersionAlreadyAddedToSubmissionError,
     AppStore::VersionAlreadyExistsError,
-    AppStore::UnexpectedAppstoreError
+    AppStore::UnexpectedAppstoreError,
+    AppStore::VersionNotEditableError
   ]
 
   CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]
