@@ -52,7 +52,7 @@ class AppleAppV1 < Hanami::API
 
     scope "release" do
       post "prepare" do
-        json(DOMAIN.create_app_store_version(**env[:app_store_connect_params].merge(params)))
+        json(DOMAIN.prepare_release(**env[:app_store_connect_params].merge(params)))
       end
 
       patch "submit" do
