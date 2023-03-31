@@ -13,6 +13,7 @@ require "./rack/app_store_auth_handler"
 require "./rack/internal_error_handler"
 require "./lib/app_store/connect"
 require "./lib/internal"
+require "./lib/log"
 
 class InternalApp < Hanami::API
   get "keys" do
@@ -108,6 +109,7 @@ class AppleAppV1 < Hanami::API
 end
 
 class App < Hanami::API
+  extend Logger
   include Initializers::Config
   extend Initializers::Env
   include Initializers::SentryConfig

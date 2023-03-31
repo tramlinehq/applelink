@@ -9,6 +9,7 @@ gem "puma"
 gem "hanami-api"
 gem "rack-jwt"
 gem "sentry-ruby"
+gem "dry-logger"
 
 group :development, :test do
   gem "standard"
