@@ -28,7 +28,7 @@ module Rack
         status, headers, _body = @app.call(env)
       ensure
         logger = @logger || env[RACK_LOGGER]
-        logger.info("HTTP Request", create_log(env, status, headers))
+        logger.info(env[PATH_INFO], create_log(env, status, headers))
       end
 
       private
