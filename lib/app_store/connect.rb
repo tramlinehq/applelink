@@ -372,7 +372,7 @@ module AppStore
 
     # no of api calls: 1
     def update_version_details!(app_store_version, version, build)
-      attempt ||= 1
+      attempts ||= 1
       execute do
         body = {
           data: {
@@ -381,14 +381,14 @@ module AppStore
           }.merge(build_app_store_version_attributes(version, build, app_store_version))
         }
 
-        log "Updating app store version details with ", {body: body, attempt: attempts}
+        log "Updating app store version details with ", {body: body, attempts: attempts}
         api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
 
         app_store_version
       end
     rescue VersionNotEditableError => e
-      if attempt <= 3
-        attempt += 1
+      if attempts <= 3
+        attempts += 1
         retry
       else
         Sentry.capture_exception(e)
