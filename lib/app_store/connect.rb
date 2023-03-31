@@ -1,5 +1,6 @@
 require "spaceship"
 require "json"
+require "ougai"
 require_relative "../../spaceship/wrapper_token"
 require_relative "../../spaceship/wrapper_error"
 
@@ -41,6 +42,7 @@ module AppStore
       Spaceship::ConnectAPI.token = token
       @api = Spaceship::ConnectAPI
       @bundle_id = params[:bundle_id]
+      @logger = ::Ougai::Logger.new($stdout)
     end
 
     attr_reader :api, :bundle_id
@@ -133,14 +135,14 @@ module AppStore
         build = get_build(build_number)
         update_export_compliance(build)
 
-        log_debug "Ensure an editable app store version", {version: version, build: build.version}
+        log "Ensure an editable app store version", {version: version, build: build.version}
         latest_version = ensure_editable_version(is_force)
 
         if latest_version
-          log_debug "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
+          log "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
           update_version_details!(latest_version, version, build)
         else
-          log_debug "There is no editable app store version, creating it", {version: version, build: build.version}
+          log "There is no editable app store version, creating it", {version: version, build: build.version}
           latest_version = create_app_store_version(version, build)
         end
 
@@ -155,16 +157,16 @@ module AppStore
           locale_params["promotionalText"] = metadata[:promotional_text]
         end
 
-        log_debug "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
+        log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
         locale.update(attributes: locale_params)
 
         if is_phased_release && latest_version.app_store_version_phased_release.nil?
-          log_debug "Creating phased release for the app store version"
+          log "Creating phased release for the app store version"
           latest_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
         elsif !is_phased_release && latest_version.app_store_version_phased_release
-          log_debug "Removing phased release from the app store version"
+          log "Removing phased release from the app store version"
           latest_version.app_store_version_phased_release.delete!
         end
 
@@ -328,11 +330,11 @@ module AppStore
         return
 
       when api::AppStoreVersion::AppStoreState::REJECTED
-        log_debug "Found rejected app store version", latest_version.to_json
+        log "Found rejected app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
 
         submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
-        log_debug "Deleting rejected app store version submission", submission.to_json
+        log "Deleting rejected app store version submission", submission.to_json
         submission.cancel_submission
         return
 
@@ -341,16 +343,16 @@ module AppStore
         api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
         api::AppStoreVersion::AppStoreState::IN_REVIEW
 
-        log_debug "Found releasable app store version", latest_version.to_json
+        log "Found releasable app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
         # NOTE: Apple has deprecated this API, but even the appstore connect dashboard uses the deprecated API to do this action
         # https://developer.apple.com/documentation/appstoreconnectapi/delete_an_app_store_version_submission
-        log_debug "Cancelling the release for releasable app store version", latest_version.to_json
+        log "Cancelling the release for releasable app store version", latest_version.to_json
         latest_version.app_store_version_submission.delete!
 
       when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION
 
-        log_debug "Found draft app store version", latest_version.to_json
+        log "Found draft app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
       end
 
@@ -359,7 +361,7 @@ module AppStore
 
     # no of api calls: 2
     def create_app_store_version(version, build)
-      log_debug "Creating a new app store version"
+      log "Creating a new app store version"
       body = build_app_store_version_attributes(version, build)
       body[:relationships][:app] = {data: {type: "apps", id: app.id}}
       body[:attributes][:platform] = IOS_PLATFORM
@@ -377,7 +379,7 @@ module AppStore
         }.merge(build_app_store_version_attributes(version, build, app_store_version))
       }
 
-      log_debug "Updating app store version details with ", body
+      log "Updating app store version details with ", body
       api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
 
       app_store_version
@@ -504,8 +506,8 @@ module AppStore
       end
     end
 
-    def log_debug(*args)
-      puts(*args)
+    def log(msg, data = {})
+      @logger.debug(msg, data)
     end
   end
 end
