@@ -165,7 +165,17 @@ module AppStore
     end
   end
 
-  class VersionNotEditableError < StandardError; end
+  class VersionNotEditableError < StandardError
+    MSG = "The release is not editable in its current state"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :release_not_editable, MSG)
+    end
+  end
 
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
