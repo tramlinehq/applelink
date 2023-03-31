@@ -372,17 +372,28 @@ module AppStore
 
     # no of api calls: 1
     def update_version_details!(app_store_version, version, build)
-      body = {
-        data: {
-          type: "appStoreVersions",
-          id: app_store_version.id
-        }.merge(build_app_store_version_attributes(version, build, app_store_version))
-      }
+      attempts ||= 1
+      execute do
+        body = {
+          data: {
+            type: "appStoreVersions",
+            id: app_store_version.id
+          }.merge(build_app_store_version_attributes(version, build, app_store_version))
+        }
 
-      log "Updating app store version details with ", body
-      api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
+        log "Updating app store version details with ", {body: body, attempts: attempts}
+        api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
 
-      app_store_version
+        app_store_version
+      end
+    rescue VersionNotEditableError => e
+      if attempts <= 3
+        attempts += 1
+        retry
+      else
+        Sentry.capture_exception(e)
+        raise e
+      end
     end
 
     def build_app_store_version_attributes(version, build, app_store_version = nil)

@@ -20,6 +20,14 @@ module Spaceship
       {
         message_matcher: /The version number has been previously used. - \/data\/attributes\/versionString/,
         decorated_exception: AppStore::VersionAlreadyExistsError
+      },
+      {
+        message_matcher: /An attribute value is not acceptable for the current resource state. - The attribute 'versionString' can not be modified. - \/data\/attributes\/versionString/,
+        decorated_exception: AppStore::VersionNotEditableError
+      },
+      {
+        message_matcher: /A relationship value is not acceptable for the current resource state. - The specified pre-release build could not be added. - \/data\/relationships\/build/,
+        decorated_exception: AppStore::VersionNotEditableError
       }
     ]
 
