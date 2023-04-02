@@ -389,6 +389,7 @@ module AppStore
     rescue VersionNotEditableError => e
       if attempts <= 3
         attempts += 1
+        sleep attempts
         retry
       else
         Sentry.capture_exception(e)
