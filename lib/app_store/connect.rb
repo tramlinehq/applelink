@@ -361,11 +361,12 @@ module AppStore
 
     # no of api calls: 2
     def create_app_store_version(version, build)
-      log "Creating a new app store version"
-      body = build_app_store_version_attributes(version, build)
-      body[:relationships][:app] = {data: {type: "apps", id: app.id}}
-      body[:attributes][:platform] = IOS_PLATFORM
+      data = build_app_store_version_attributes(version, build)
+      data[:relationships][:app] = {data: {type: "apps", id: app.id}}
+      data[:attributes][:platform] = IOS_PLATFORM
+      body = {data: data}
 
+      log "Creating app store version with ", {body: body}
       api.tunes_request_client.post("appStoreVersions", body)
       app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
     end
@@ -376,7 +377,6 @@ module AppStore
       execute do
         body = {
           data: {
-            type: "appStoreVersions",
             id: app_store_version.id
           }.merge(build_app_store_version_attributes(version, build, app_store_version))
         }
@@ -418,6 +418,7 @@ module AppStore
       end
 
       body = {
+        type: "appStoreVersions",
         attributes: attributes,
         relationships: (relationships unless relationships.nil?)
       }
