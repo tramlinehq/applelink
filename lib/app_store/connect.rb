@@ -323,10 +323,13 @@ module AppStore
     def ensure_editable_version(is_force)
       latest_version = app.get_latest_app_store_version(includes: VERSION_DATA_INCLUDES)
 
+      log "Latest app store version", latest_version.to_json
+
       case latest_version.app_store_state
       when api::AppStoreVersion::AppStoreState::READY_FOR_SALE,
         api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
 
+        log "Found a live app store version", latest_version.to_json
         return
 
       when api::AppStoreVersion::AppStoreState::REJECTED
