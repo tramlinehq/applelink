@@ -361,7 +361,6 @@ module AppStore
 
     # no of api calls: 2
     def create_app_store_version(version, build)
-      log "Creating a new app store version"
       data = build_app_store_version_attributes(version, build)
       data[:relationships][:app] = {data: {type: "apps", id: app.id}}
       data[:attributes][:platform] = IOS_PLATFORM
