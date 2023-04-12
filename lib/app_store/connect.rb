@@ -319,9 +319,13 @@ module AppStore
 
     private
 
+    def get_latest_app_store_version
+      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES).max_by { |v| Time.parse(v.created_date) }
+    end
+
     # no of api calls: 1-3
     def ensure_editable_version(is_force)
-      latest_version = app.get_latest_app_store_version(includes: VERSION_DATA_INCLUDES)
+      latest_version = get_latest_app_store_version
 
       log "Latest app store version", latest_version.to_json
 
