@@ -1,12 +1,23 @@
 <img width="2428" alt="applelink-banner-shado" src="https://user-images.githubusercontent.com/50663/232988897-4f3bac02-0208-446e-a8b2-5709039f36fb.png">
 
+<p align="center">
+  <a href="https://github.com/testdouble/standard">
+    <img src="https://img.shields.io/badge/code_style-standard-brightgreen.svg" />
+  </a>
 
-[![Ruby Style Guide](https://img.shields.io/badge/code_style-standard-brightgreen.svg)](https://github.com/testdouble/standard)
-[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg)](CODE_OF_CONDUCT.md)
+  <a href="CODE_OF_CONDUCT.md">
+    <img src="https://img.shields.io/badge/Contributor%20Covenant-2.0-4baaaa.svg" />
+  </a>
+</p>
 
-APIs that wrap over the App Store Connect API for commonly used patterns using [spaceship](https://spaceship.airforce).
+<p align="center">
+  APIs that wrap over the App Store Connect API for commonly used patterns using <a href="https://spaceship.airforce">spaceship</a>.<br/>
+  Built with <a href="https://github.com/hanami/api">Hanami::API</a>.<br/>
+</p>
 
-Built with [Hanami::API](https://github.com/hanami/api).
+
+
+
 
 ## Development
 
