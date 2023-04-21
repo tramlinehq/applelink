@@ -33,8 +33,37 @@ just lint # run lint
 
 All APIs (except ping) are secured by JWT auth. Please use standard authorization header:
 ```
-Authorization: Bearer <TRAMLINE_ISSUED_TOKEN>
+Authorization: Bearer <AUTH_TOKEN>
 ```
+
+The `AUTH_TOKEN` can be generated using `HS256` algo and the secret for generating and verifying the token is shared between Tramline/any other client and applelink.
+
+These can be configured using the following env variables:
+
+```text
+AUTH_ISSUER=tramline.dev
+AUTH_SECRET=password
+AUTH_AUD=applelink
+```
+These values can be set to whatever you want, as long as they are same between the caller and Applelink.
+
+Example code for generating the token can be taken from [this file](https://github.com/tramlinehq/tramline/blob/main/app/libs/installations/apple/app_store_connect/jwt.rb) in the Tramline repo.
+
+In addition to the auth token, you also need the App Store Connect JWT token which is documented [here](https://developer.apple.com/documentation/appstoreconnectapi/generating_tokens_for_api_requests).
+
+#### Internal API
+
+For the development environment, you can generate the above tokens using the following helper API:
+
+```shell
+curl -i -X GET http://127.0.0.1:4000/internal/keys?key_id=KEY_ID&issuer_id=ISSUER_ID
+
+{
+  "store_token": "eyJraWQiOiJLRVlfSUQiLCJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJJU1NVRVJfSUQiLCJpYXQiOjE2ODIwNjA1MzYsImV4cCI6MTY4MjA2MTAzNiwiYXVkIjoiYXBwc3RvcmVjb25uZWN0LXYxIn0.-pFtamhBjsNKLr5Z2Ft2tW9H2NojBF1d8RqQBr7nNZF43KUNGMQIPQyp9BCSrFXJop1k7hk7jJstXRJ-WMH_8Q",
+  "auth_token": "eyJhbGciOiJIUzI1NiJ9.eyJpYXQiOjE2ODIwNjA1MzYsImV4cCI6MTY4MjA2MTUzNiwiYXVkIjoiYXBwbGVsaW5rIiwiaXNzIjoidHJhbWxpbmUuZGV2In0.HDJJw6o6YK-Jmzpl0Xu4SmlTcGtNeEFI0VIg6fqitdw"
+}
+```
+This expects the correct env variables to be set for `AUTH_TOKEN` and the App Store Connect `key.p8` file to be present in the Applelink directory along with the relevant `KEY_ID` and `ISSUER_iD` being passed to the API.
 
 ## API
 
