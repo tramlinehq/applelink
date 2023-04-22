@@ -23,20 +23,18 @@
 
 ## Why?
 
-Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. Currently, it exposes [13 API endpoints](#api).
+Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. 
 
-In Applelink, a complex recipe, such as release/prepare, will perform the following tasks all bunched up:
+These are based on the needs of the framework that [Tramline](https://tramline.app) implements over App Store. The API pulls its weight so Tramline has to do as little as possible. Currently, it exposes [13 API endpoints](#api).
+
+In Applelink, a complex recipe, such as [release/prepare](#prepare-a-release-for-the-app), will perform the following tasks all bunched up:
 - Ensure that there is an App Store version that we can use for the release, or create a new one
 - Update the release metadata for that release version
 - Enable phased releases, if necessary
 
-Similarly a simple fetch endpoint like release/live will give you the current status of the latest release.
+Similarly a simple fetch endpoint like [release/live](#fetch-the-status-of-current-live-release) will give you the current status of the latest release.
 
-Even though Spaceship has helped us come a long way, it isn't necessarily efficient at choosing the right combination of API calls underneath. For example, while preparing a release, Spaceship could end up making 3 separate API calls to look for the app, update its attributes (setting release type, version name etc.) and then select the correct build.
-
-In some instances it’s just better to drop the interface from Spaceship altogether and make direct API requests. Applelink tries to choose the most efficient path by making use of the correct relationships.
-
-Since Fastlane is mainly intended as a command-line tool for build pipelines, its primary focus may not be an efficient request-response cycle.
+Even though Spaceship has helped us come a long way, it isn't necessarily efficient at choosing the right combination of API calls underneath. For example, while preparing a release, Spaceship could end up making 3 separate API calls to look for the app, update its attributes (setting release type, version name etc.) and then select the correct build. In some instances it’s just better to drop the interface from Spaceship altogether and make direct API requests. Applelink tries to choose the most efficient path by making use of the [correct relationships](https://developer.apple.com/documentation/appstoreconnectapi/app/relationships/appstoreversions). Since [Fastlane](https://fastlane.tools) is intended as a command-line tool for build pipelines, its primary focus may not be an efficient request-response cycle.
 
 Applelink is a separate service that is not reliant on Tramline’s internal state. It can be used in a standalone way, for e.g. from a CI workflow, or a Slack bot that spits out app release information.
 
