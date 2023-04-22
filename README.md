@@ -11,17 +11,14 @@
 </p>
 
 <p align="center">
-<strong>
-<code> APIs that wrap over the App Store Connect API for commonly used patterns using <a href="https://spaceship.airforce">Spaceship</a> </code><br/>
-<code> Built with <a href="https://github.com/hanami/api">Hanami::API</a> <br/></code>
-</strong>
+<strong>Practical recipes over the App Store Connect API via Fastlane</strong>
 </p>
 
 <p align="center">
-  Read more about why we built Applelink: https://www.tramline.app/blog/applelink-practical-api-recipes-for-app-store-connect-workflows
+  Read more about the why in this <a href="https://www.tramline.app/blog/applelink-practical-api-recipes-for-app-store-connect-workflows">blog post</a>.
 </p>
 
-## Why?
+## Rationale
 
 Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. 
 
