@@ -23,7 +23,7 @@
 
 ## Why?
 
-Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. Currently, it exposes 13 API endpoints.
+Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. Currently, it exposes [13 API endpoints](#api).
 
 In Applelink, a complex recipe, such as release/prepare, will perform the following tasks all bunched up:
 - Ensure that there is an App Store version that we can use for the release, or create a new one
