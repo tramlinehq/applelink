@@ -66,7 +66,7 @@ module AppStore
         version_string: live_version&.version_string,
         status: live_version&.app_store_state,
         release_date: live_version&.created_date,
-        build_number: live_version&.build.version
+        build_number: live_version&.build&.version
       }
     end
 
