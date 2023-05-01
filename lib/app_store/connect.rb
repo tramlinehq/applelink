@@ -55,7 +55,8 @@ module AppStore
 
     # no of api calls: 2 + n (n = number of beta groups)
     def current_app_info
-      beta_app_info.push({name: "production", builds: [live_app_info]})
+      beta_app_info
+      # beta_app_info.push({name: "production", builds: [live_app_info]})
     end
 
     # no of api calls: 2
