@@ -62,11 +62,11 @@ module AppStore
     def live_app_info
       live_version = app.get_live_app_store_version
       {
-        id: live_version.id,
-        version_string: live_version.version_string,
-        status: live_version.app_store_state,
-        release_date: live_version.created_date,
-        build_number: live_version.build.version
+        id: live_version&.id,
+        version_string: live_version&.version_string,
+        status: live_version&.app_store_state,
+        release_date: live_version&.created_date,
+        build_number: live_version&.build.version
       }
     end
 
