@@ -55,13 +55,13 @@ module AppStore
 
     # no of api calls: 2 + n (n = number of beta groups)
     def current_app_info
-      beta_app_info
-      # beta_app_info.push({name: "production", builds: [live_app_info]})
+      beta_app_info.push({name: "production", builds: [live_app_info].compact})
     end
 
     # no of api calls: 2
     def live_app_info
       live_version = app.get_live_app_store_version
+      return unless live_version
       {
         id: live_version&.id,
         version_string: live_version&.version_string,
