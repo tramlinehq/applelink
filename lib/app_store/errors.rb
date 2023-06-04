@@ -97,7 +97,13 @@ module AppStore
     end
   end
 
-  class PhasedReleaseAlreadyInStateError < StandardError; end
+  class PhasedReleaseAlreadyInStateError < StandardError
+    MSG = "The current live release is already in the state you are requesting"
+
+    def as_json
+      AppStore.error_as_json(:release, :release_already_in_state, MSG)
+    end
+  end
 
   class PhasedReleaseNotFoundError < StandardError
     MSG = "The current live release does not have a staged rollout"
