@@ -321,7 +321,10 @@ module AppStore
     private
 
     def get_latest_app_store_version
-      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES).max_by { |v| Time.parse(v.created_date) }
+      filter = {
+        platform: IOS_PLATFORM
+      }
+      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:).max_by { |v| Time.parse(v.created_date) }
     end
 
     # no of api calls: 1-3
