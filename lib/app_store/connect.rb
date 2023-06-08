@@ -478,12 +478,12 @@ module AppStore
       {
         id: build.id,
         build_number: build.version,
-        beta_internal_state: build.build_beta_detail.internal_build_state,
-        beta_external_state: build.build_beta_detail.external_build_state,
+        beta_internal_state: build.build_beta_detail&.internal_build_state,
+        beta_external_state: build.build_beta_detail&.external_build_state,
         uploaded_date: build.uploaded_date,
         expired: build.expired,
         processing_state: build.processing_state,
-        version_string: build.pre_release_version.version
+        version_string: build.pre_release_version&.version
       }
     end
 
