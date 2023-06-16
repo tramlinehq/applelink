@@ -48,7 +48,9 @@ module AppStore
     attr_reader :api, :bundle_id
 
     def app
-      @app ||= api::App.find(bundle_id)
+      @app ||= api::App.all(filter: {bundleId: bundle_id}, includes: "appStoreVersions").find do |app|
+        app.bundle_id == bundle_id
+      end
       raise AppNotFoundError unless @app
       @app
     end
