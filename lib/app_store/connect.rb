@@ -204,7 +204,7 @@ module AppStore
     end
 
     # no of api calls: 2
-    def release(build_number:)
+    def release(build_number: nil)
       execute do
         filter = {
           appStoreState: [
@@ -222,7 +222,7 @@ module AppStore
           platform: IOS_PLATFORM
         }
 
-        if build_number == "nil" || build_number.nil? || build_number.empty?
+        if build_number.nil? || build_number.empty?
           version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
                        .max_by { |v| Date.parse(v.created_date) }
 
