@@ -206,7 +206,7 @@ module AppStore
     end
 
     # no of api calls: 2
-    def release(build_number:)
+    def release(build_number: nil)
       execute do
         filter = {
           appStoreState: [
@@ -224,10 +224,17 @@ module AppStore
           platform: IOS_PLATFORM
         }
 
-        version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
-          .find { |v| v.build&.version == build_number }
+        if build_number.nil? || build_number.empty?
+          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+            .max_by { |v| Date.parse(v.created_date) }
 
-        raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
+          raise VersionNotFoundError.new("No inflight release found") unless version
+        else
+          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+            .find { |v| v.build&.version == build_number }
+
+          raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
+        end
         version_data(version)
       end
     end
