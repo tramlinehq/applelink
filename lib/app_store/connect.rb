@@ -510,9 +510,24 @@ module AppStore
     end
 
     def get_build(build_number)
+      attempts ||= 1
+
       build = app.get_builds(includes: "preReleaseVersion,buildBetaDetail", filter: {version: build_number}).first
-      raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build&.processed?
+      raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
       build
+    rescue BuildNotFoundError => e
+      if attempts <= 3
+        attempts += 1
+        sleep attempts
+        retry
+      else
+        Sentry.capture_exception(e)
+        raise e
+      end
+    end
+
+    def build_ready?(build)
+      build&.processed? || build&.build_beta_detail
     end
 
     def execute
