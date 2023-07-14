@@ -527,7 +527,7 @@ module AppStore
     end
 
     def build_ready?(build)
-      build&.processed? || build&.build_beta_detail
+      build&.processed? && build&.build_beta_detail
     end
 
     def execute
