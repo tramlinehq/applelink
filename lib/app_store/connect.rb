@@ -10,6 +10,8 @@ module AppStore
 
     def self.build(**params) = new(**params).build(**params.slice(:build_number))
 
+    def self.latest_build(**params) = new(**params).latest_build
+
     def self.send_to_group(**params) = new(**params).send_to_group(**params.slice(:group_id, :build_number))
 
     def self.metadata(**params) = new(**params).metadata
@@ -101,9 +103,16 @@ module AppStore
       end
     end
 
-    # no of api calls: 2
+    # no of api calls: 2;  +3 retries
     def build(build_number:)
       build_data(get_build(build_number))
+    end
+
+    # no of api calls: 2
+    def latest_build
+      build = app.get_builds(includes: "preReleaseVersion,buildBetaDetail", sort: "-version").first
+      raise BuildNotFoundError.new("No build found for the app") unless build
+      build_data(build)
     end
 
     # no of api calls: 4-7
