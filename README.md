@@ -20,7 +20,7 @@
 
 ## Rationale
 
-Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion. 
+Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion.
 
 These are based on the needs of the framework that [Tramline](https://tramline.app) implements over App Store. The API pulls its weight so Tramline has to do as little as possible. Currently, it exposes [13 API endpoints](#api).
 
@@ -318,6 +318,46 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > -H "X-AppStoreConnect-Token: token" \
 > -H "Content-Type: application/json" \
 > http://localhost:4000/apple/connect/v1/apps/com.tramline.app/builds/9018
+> ```
+
+##### Success response
+> ```json
+> {
+> "id": "bc90d402-ed0c-4d05-887f-d300abc104e9",
+> "build_number": "9018",
+> "beta_internal_state": "IN_BETA_TESTING",
+> "beta_external_state": "BETA_APPROVED",
+> "uploaded_date": "2023-02-22T22:27:48-08:00",
+> "expired": false,
+> "processing_state": "VALID",
+> "version_string": "1.5.0"
+> }
+> ```
+
+
+</details>
+
+#### Fetch the latest build for an app
+
+<details>
+ <summary><code>GET</code> <code><b>/apple/connect/v1/apps/:bundle-id/builds/latest</b></code></summary>
+
+##### Path parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | bundle-id | required  | string   | app's unique identifier  |
+
+##### Example cURL
+
+> ```bash
+> curl -X GET \
+> -H "Authorization: Bearer token" \
+> -H "X-AppStoreConnect-Key-Id: key-id" \
+> -H "X-AppStoreConnect-Issuer-Id: iss-id" \
+> -H "X-AppStoreConnect-Token: token" \
+> -H "Content-Type: application/json" \
+> http://localhost:4000/apple/connect/v1/apps/com.tramline.app/builds/latest
 > ```
 
 ##### Success response

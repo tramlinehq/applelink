@@ -110,7 +110,7 @@ module AppStore
 
     # no of api calls: 2
     def latest_build
-      build = app.get_builds(sort: "-version").first
+      build = app.get_builds(includes: "preReleaseVersion,buildBetaDetail", sort: "-version").first
       raise BuildNotFoundError.new("No build found for the app") unless build
       build_data(build)
     end
