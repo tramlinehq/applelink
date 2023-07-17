@@ -50,6 +50,10 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
     end
 
+    get "builds/latest" do
+      json(DOMAIN.latest_build(**env[:app_store_connect_params].merge(params)))
+    end
+
     scope "release" do
       post "prepare" do
         json(DOMAIN.prepare_release(**env[:app_store_connect_params].merge(params)))

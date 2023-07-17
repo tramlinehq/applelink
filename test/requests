@@ -42,6 +42,11 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :my-headers
 #
 
+# Get latest build for an app
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/latest
+:my-headers
+#
+
 
 # This is Opinion's ID
 :group-id = 3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69
