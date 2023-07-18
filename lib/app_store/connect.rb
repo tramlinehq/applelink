@@ -338,6 +338,7 @@ module AppStore
 
     private
 
+    # no of api calls: 1-4 ; +3 with every retry attempt
     def submit_for_beta_review(build)
       attempts ||= 1
       execute do
@@ -350,8 +351,7 @@ module AppStore
         waiting_for_review_build = app.get_builds(
           filter: {"betaAppReviewSubmission.betaReviewState" => "WAITING_FOR_REVIEW,IN_REVIEW",
                    "expired" => false,
-                   "preReleaseVersion.version" => build.pre_release_version.version},
-          includes: "betaAppReviewSubmission,preReleaseVersion"
+                   "preReleaseVersion.version" => build.pre_release_version.version}
         ).first
         if waiting_for_review_build
           waiting_for_review_build.expire!
@@ -577,8 +577,7 @@ module AppStore
     def execute
       yield
     rescue Spaceship::UnexpectedResponse => e
-      wrapped_error = Spaceship::WrapperError.handle(e)
-      raise wrapped_error
+      raise Spaceship::WrapperError.handle(e)
     end
 
     def to_bool(s)
