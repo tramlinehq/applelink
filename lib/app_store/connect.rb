@@ -126,7 +126,7 @@ module AppStore
         group = group(group_id)
         build = update_export_compliance(build)
 
-        build.post_beta_app_review_submission if build.ready_for_beta_submission? && !group.is_internal_group
+        submit_for_beta_review(build) unless group.is_internal_group
         build.add_beta_groups(beta_groups: [group])
       end
     end
@@ -337,6 +337,34 @@ module AppStore
     end
 
     private
+
+    # no of api calls: 1-4 ; +3 with every retry attempt
+    def submit_for_beta_review(build)
+      attempts ||= 1
+      execute do
+        log("Submitting build #{build.version} for beta review. Attempt - #{attempts}")
+        build.post_beta_app_review_submission if build.ready_for_beta_submission?
+      end
+    rescue AppStore::ReviewAlreadyInProgressError => e
+      log("There is a build already in review, expiring that. Attempt - #{attempts}")
+      if attempts <= 3
+        waiting_for_review_build = app.get_builds(
+          filter: {"betaAppReviewSubmission.betaReviewState" => "WAITING_FOR_REVIEW,IN_REVIEW",
+                   "expired" => false,
+                   "preReleaseVersion.version" => build.pre_release_version.version}
+        ).first
+        if waiting_for_review_build
+          waiting_for_review_build.expire!
+          log("Expired build - #{waiting_for_review_build.version}.")
+        end
+        attempts += 1
+        sleep attempts
+        log("Retrying submitting build #{build.version} for beta review.")
+        retry
+      else
+        raise e
+      end
+    end
 
     def get_latest_app_store_version
       filter = {

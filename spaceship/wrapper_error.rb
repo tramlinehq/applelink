@@ -28,6 +28,10 @@ module Spaceship
       {
         message_matcher: /A relationship value is not acceptable for the current resource state. - The specified pre-release build could not be added. - \/data\/relationships\/build/,
         decorated_exception: AppStore::VersionNotEditableError
+      },
+      {
+        message_matcher: /Another build is in review/,
+        decorated_exception: AppStore::ReviewAlreadyInProgressError
       }
     ]
 
