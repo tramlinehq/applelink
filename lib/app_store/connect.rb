@@ -38,6 +38,21 @@ module AppStore
 
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
     VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations appStoreVersionSubmission].join(",").freeze
+    INFLIGHT_RELEASE_FILTERS = {
+      appStoreState: [
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+      ].join(","),
+      platform: IOS_PLATFORM
+    }
 
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
@@ -57,22 +72,9 @@ module AppStore
       @app
     end
 
-    # no of api calls: 2 + n (n = number of beta groups)
+    # no of api calls: 3 + n (n = number of beta groups)
     def current_app_info
-      beta_app_info.push({name: "production", builds: [live_app_info].compact})
-    end
-
-    # no of api calls: 2
-    def live_app_info
-      live_version = app.get_live_app_store_version
-      return unless live_version
-      {
-        id: live_version&.id,
-        version_string: live_version&.version_string,
-        status: live_version&.app_store_state,
-        release_date: live_version&.created_date,
-        build_number: live_version&.build&.version
-      }
+      beta_app_info.push({name: "production", builds: [live_app_info, inflight_release_info].compact})
     end
 
     # no of api calls: 1 + n (n = number of beta groups)
@@ -217,29 +219,12 @@ module AppStore
     # no of api calls: 2
     def release(build_number: nil)
       execute do
-        filter = {
-          appStoreState: [
-            api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-            api::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
-            api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
-            api::AppStoreVersion::AppStoreState::REJECTED,
-            api::AppStoreVersion::AppStoreState::METADATA_REJECTED,
-            api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-            api::AppStoreVersion::AppStoreState::INVALID_BINARY,
-            api::AppStoreVersion::AppStoreState::IN_REVIEW,
-            api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-            api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
-          ].join(","),
-          platform: IOS_PLATFORM
-        }
-
         if build_number.nil? || build_number.empty?
-          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
-            .max_by { |v| Date.parse(v.created_date) }
+          version = current_inflight_release
 
           raise VersionNotFoundError.new("No inflight release found") unless version
         else
-          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
             .find { |v| v.build&.version == build_number }
 
           raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
@@ -337,6 +322,36 @@ module AppStore
     end
 
     private
+
+    def current_inflight_release
+      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
+        .max_by { |v| Date.parse(v.created_date) }
+    end
+
+    def inflight_release_info
+      inflight_version = current_inflight_release
+      return unless inflight_version
+      {
+        id: inflight_version.id,
+        version_string: inflight_version.version_string,
+        status: inflight_version.app_store_state,
+        release_date: inflight_version.created_date,
+        build_number: inflight_version.build&.version
+      }
+    end
+
+    # no of api calls: 2
+    def live_app_info
+      live_version = app.get_live_app_store_version
+      return unless live_version
+      {
+        id: live_version.id,
+        version_string: live_version.version_string,
+        status: live_version.app_store_state,
+        release_date: live_version.created_date,
+        build_number: live_version.build&.version
+      }
+    end
 
     # no of api calls: 1-4 ; +3 with every retry attempt
     def submit_for_beta_review(build)
