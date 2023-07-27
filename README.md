@@ -337,6 +337,38 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 
 </details>
 
+#### Update the test notes for a build in TestFlight
+
+<details>
+ <summary><code>PATCH</code> <code><b>/apple/connect/v1/apps/:bundle-id/builds/:build-number</b></code></summary>
+
+##### Path parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | bundle-id | required  | string   | app's unique identifier  |
+
+##### JSON Parameters
+
+> | name |  type     | data type               | description                                      |
+> |------|-----------|--------------------------------------------------|-------------------------|
+> | notes    | required  | string   | "test the feature to add release notes to builds" |
+
+##### Example cURL
+
+> ```bash
+> curl -X PATCH \
+> -H "Authorization: Bearer token" \
+> -H "X-AppStoreConnect-Key-Id: key-id" \
+> -H "X-AppStoreConnect-Issuer-Id: iss-id" \
+> -H "X-AppStoreConnect-Token: token" \
+> -H "Content-Type: application/json" \
+> -d '{"notes": "test the feature to add release notes to builds"}' \
+> http://localhost:4000/apple/connect/v1/apps/com.tramline.app/builds/latest
+> ```
+
+</details>
+
 #### Fetch the latest build for an app
 
 <details>
