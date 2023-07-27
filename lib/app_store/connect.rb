@@ -114,17 +114,19 @@ module AppStore
 
     def update_build_notes(build_number:, notes: nil)
       return if notes.nil? || notes.empty?
-      build = get_build(build_number, %w[betaBuildLocalizations])
-      locale = build.get_beta_build_localizations.first
-      locale_params = {whatsNew: notes}
+      execute do
+        build = get_build(build_number, %w[betaBuildLocalizations])
+        locale = build.get_beta_build_localizations.first
+        locale_params = {whatsNew: notes}
 
-      log "Updating locale for the build", {build: build.to_json, locale: locale, params: locale_params}
+        log "Updating locale for the build", {build: build.to_json, locale: locale, params: locale_params}
 
-      if locale
-        api.patch_beta_build_localizations(localization_id: locale.id, attributes: locale_params)
-      else
-        attributes[:locale] = "en-US"
-        api.post_beta_build_localizations(build_id: build.id, attributes: locale_params)
+        if locale
+          api.patch_beta_build_localizations(localization_id: locale.id, attributes: locale_params)
+        else
+          attributes[:locale] = "en-US"
+          api.post_beta_build_localizations(build_id: build.id, attributes: locale_params)
+        end
       end
     end
 
