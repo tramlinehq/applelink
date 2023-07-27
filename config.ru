@@ -46,12 +46,19 @@ class AppleAppV1 < Hanami::API
       json(DOMAIN.current_app_info(**env[:app_store_connect_params].merge(params)))
     end
 
-    get "builds/:build_number" do
-      json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
-    end
+    scope "builds" do
+      get ":build_number" do
+        json(DOMAIN.build(**env[:app_store_connect_params].merge(params)))
+      end
 
-    get "builds/latest" do
-      json(DOMAIN.latest_build(**env[:app_store_connect_params].merge(params)))
+      get "latest" do
+        json(DOMAIN.latest_build(**env[:app_store_connect_params].merge(params)))
+      end
+
+      patch ":build_number" do
+        DOMAIN.update_build_notes(**env[:app_store_connect_params].merge(params))
+        status(204)
+      end
     end
 
     scope "release" do

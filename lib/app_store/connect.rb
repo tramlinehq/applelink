@@ -10,6 +10,8 @@ module AppStore
 
     def self.build(**params) = new(**params).build(**params.slice(:build_number))
 
+    def self.update_build_notes(**params) = new(**params).update_build_notes(**params.slice(:build_number, :notes))
+
     def self.latest_build(**params) = new(**params).latest_build
 
     def self.send_to_group(**params) = new(**params).send_to_group(**params.slice(:group_id, :build_number))
@@ -108,6 +110,24 @@ module AppStore
     # no of api calls: 2;  +3 retries
     def build(build_number:)
       build_data(get_build(build_number))
+    end
+
+    def update_build_notes(build_number:, notes: nil)
+      return if notes.nil? || notes.empty?
+      execute do
+        build = get_build(build_number, %w[betaBuildLocalizations])
+        locale = build.get_beta_build_localizations.first
+        locale_params = {whatsNew: notes}
+
+        log "Updating locale for the build", {build: build.to_json, locale: locale, params: locale_params}
+
+        if locale
+          api.patch_beta_build_localizations(localization_id: locale.id, attributes: locale_params)
+        else
+          attributes[:locale] = "en-US"
+          api.post_beta_build_localizations(build_id: build.id, attributes: locale_params)
+        end
+      end
     end
 
     # no of api calls: 2
@@ -568,10 +588,10 @@ module AppStore
       group
     end
 
-    def get_build(build_number)
+    def get_build(build_number, includes = [])
       attempts ||= 1
 
-      build = app.get_builds(includes: "preReleaseVersion,buildBetaDetail", filter: {version: build_number}).first
+      build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
       raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
       build
     rescue BuildNotFoundError => e

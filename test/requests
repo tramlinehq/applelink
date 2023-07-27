@@ -42,6 +42,14 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
 :my-headers
 #
 
+# Update the build notes
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/:build-number
+:my-headers
+{
+"notes": "ring a ring o roses"
+}
+#
+
 # Get latest build for an app
 GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/latest
 :my-headers
