@@ -237,61 +237,31 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 
 ##### Success response
 > ```json
-> [
->   {
->     "name": "The Pledge",
->     "id": "fcacfdf7-db62-44af-a0cb-0676e17c251b",
->     "internal": true,
->     "testers": [
->       {
->         "name": "Akshay Gupta",
->         "email": "kitallis@gmail.com"
->       },
->       {
->         "name": "Pratul Kalia",
->         "email": "pratulkalia@gmail.com"
->       },
->       {
->         "name": "Nivedita Priyadarshini",
->         "email": "nid.mishra7@gmail.com"
->       }
->     ]
->   },
->   {
->     "name": "The Prestige",
->     "id": "2cd6be09-d959-4ed3-a4e7-db8cabbe44d0",
->     "internal": true,
->     "testers": [
->       {
->         "name": "Pratul Kalia",
->         "email": "pratulkalia@gmail.com"
->       }
->     ]
->   },
->   {
->     "name": "The Trick",
->     "id": "dab66de0-7af2-48ae-97af-cc8dfdbde51d",
->     "internal": true,
->     "testers": [
->       {
->         "name": "Nivedita Priyadarshini",
->         "email": "nid.mishra7@gmail.com"
->       }
->     ]
->   },
->   {
->     "name": "Big External Group",
->     "id": "3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69",
->     "internal": false,
->     "testers": []
->   },
->   {
->     "name": "Small External Group",
->     "id": "dc64b810-1157-4228-825b-eb9e95cc8fba",
->     "internal": false,
->     "testers": []
->   }
-> ]
+> [{
+>		"name": "The Pledge",
+>		"id": "fcacfdf7-db62-44af-a0cb-0676e17c251b",
+>		"internal": true
+>	},
+>	{
+>		"name": "The Prestige",
+>		"id": "2cd6be09-d959-4ed3-a4e7-db8cabbe44d0",
+>		"internal": true
+>	},
+>	{
+>		"name": "The Trick",
+>		"id": "dab66de0-7af2-48ae-97af-cc8dfdbde51d",
+>		"internal": true
+>	},
+>	{
+>		"name": "Big External Group",
+>		"id": "3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69",
+>		"internal": false
+>	},
+>	{
+>		"name": "Small External Group",
+>		"id": "dc64b810-1157-4228-825b-eb9e95cc8fba",
+>		"internal": false
+>	}]
 > ```
 
 </details>
