@@ -6,7 +6,7 @@ require_relative "../../spaceship/wrapper_error"
 
 module AppStore
   class Connect
-    def self.groups(**params) = new(**params).groups(**params.slice(:internal))
+    def self.groups(**params) = new(**params).groups
 
     def self.build(**params) = new(**params).build(**params.slice(:build_number))
 
@@ -93,17 +93,9 @@ module AppStore
     end
 
     # no of api calls: 2
-    def groups(internal:)
-      app.get_beta_groups(includes: "betaTesters", filter: {isInternalGroup: to_bool(internal)}).map do |group|
-        testers =
-          group.beta_testers.map do |tester|
-            {
-              name: "#{tester.first_name} #{tester.last_name}",
-              email: tester.email
-            }
-          end
-
-        {name: group.name, id: group.id, internal: group.is_internal_group, testers: testers}
+    def groups
+      app.get_beta_groups.map do |group|
+        {name: group.name, id: group.id, internal: group.is_internal_group}
       end
     end
 
@@ -613,17 +605,6 @@ module AppStore
       yield
     rescue Spaceship::UnexpectedResponse => e
       raise Spaceship::WrapperError.handle(e)
-    end
-
-    def to_bool(s)
-      case s.downcase.strip
-      when "true", "yes", "on", "t", "1", "y", "=="
-        true
-      when "nil", "null"
-        nil
-      else
-        false
-      end
     end
 
     def log(msg, data = {})

@@ -31,7 +31,7 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/current_status
 :my-headers
 #
 # Get beta groups for an app
-GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/groups/
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/groups
 :my-headers
 #
 
