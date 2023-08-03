@@ -534,7 +534,7 @@ module AppStore
         build_created_at: version.build&.uploaded_date,
         phased_release: version.app_store_version_phased_release,
         details: version.app_store_version_localizations&.first,
-        released_at: [version.created_date, version.build&.uploaded_date].compact.max
+        added_at: [version.created_date, version.build&.uploaded_date].compact.max
       }
     end
 
