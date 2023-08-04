@@ -12,7 +12,7 @@ module Internal
 
     payload = {
       iat: Time.now.to_i,
-      exp: Time.now.to_i + 1000,
+      exp: Time.now.to_i + 10000,
       aud: ENV["AUTH_AUD"],
       iss: ENV["AUTH_ISSUER"]
     }
