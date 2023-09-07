@@ -40,6 +40,7 @@ module AppStore
 
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
     VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations appStoreVersionSubmission].join(",").freeze
+    READY_FOR_REVIEW_STATE = "READY_FOR_REVIEW"
     INFLIGHT_RELEASE_FILTERS = {
       appStoreState: [
         Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
@@ -51,7 +52,8 @@ module AppStore
         Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
         Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
         Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE
+        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
+        READY_FOR_REVIEW_STATE
       ].join(","),
       platform: IOS_PLATFORM
     }
@@ -205,7 +207,9 @@ module AppStore
       execute do
         build = get_build(build_number)
 
-        edit_version = app.get_edit_app_store_version(includes: "build")
+        edit_version = app
+          .get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
+          .find { |v| v.build&.version == build_number.to_s }
         raise VersionNotFoundError unless edit_version
 
         ensure_correct_build(build, edit_version)
@@ -224,7 +228,26 @@ module AppStore
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
 
         submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
+
+        do_submit(submission, edit_version)
+      end
+    end
+
+    def do_submit(submission, edit_version)
+      attempts ||= 1
+      execute do
+        log("Submitting app #{edit_version.version} for review. Attempt - #{attempts}")
         submission.submit_for_review
+      end
+    rescue AppStore::InvalidReviewStateError => e
+      log("Version not in a valid state for review submission. Attempt - #{attempts}")
+      if attempts <= 3
+        attempts += 1
+        sleep attempts
+        log("Retrying submitting app #{edit_version.version} for review.")
+        retry
+      else
+        raise e
       end
     end
 
