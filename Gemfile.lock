@@ -232,6 +232,7 @@ GEM
       trailblazer-option (>= 0.1.1, < 0.2.0)
       uber (< 0.2.0)
     retriable (3.1.2)
+    retryable (3.0.5)
     rexml (3.2.5)
     rouge (2.0.7)
     rubocop (1.42.0)
@@ -312,6 +313,7 @@ DEPENDENCIES
   ougai
   puma
   rack-jwt
+  retryable
   sentry-ruby
   standard
 

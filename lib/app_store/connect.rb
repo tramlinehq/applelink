@@ -1,6 +1,7 @@
 require "spaceship"
 require "json"
 require "ougai"
+require "retryable"
 require_relative "../../spaceship/wrapper_token"
 require_relative "../../spaceship/wrapper_error"
 
@@ -229,25 +230,14 @@ module AppStore
 
         submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
 
-        do_submit(submission, edit_version)
+        submit_review(submission, edit_version)
       end
     end
 
-    def do_submit(submission, edit_version)
-      attempts ||= 1
-      execute do
-        log("Submitting app #{edit_version.version} for review. Attempt - #{attempts}")
+    def submit_review(submission, edit_version)
+      execute_with_retry(AppStore::InvalidReviewStateError) do
+        log("Submitting app #{edit_version.version} for review")
         submission.submit_for_review
-      end
-    rescue AppStore::InvalidReviewStateError => e
-      log("Version not in a valid state for review submission. Attempt - #{attempts}")
-      if attempts <= 3
-        attempts += 1
-        sleep attempts
-        log("Retrying submitting app #{edit_version.version} for review.")
-        retry
-      else
-        raise e
       end
     end
 
@@ -390,14 +380,8 @@ module AppStore
 
     # no of api calls: 1-4 ; +3 with every retry attempt
     def submit_for_beta_review(build)
-      attempts ||= 1
-      execute do
-        log("Submitting build #{build.version} for beta review. Attempt - #{attempts}")
-        build.post_beta_app_review_submission if build.ready_for_beta_submission?
-      end
-    rescue AppStore::ReviewAlreadyInProgressError => e
-      log("There is a build already in review, expiring that. Attempt - #{attempts}")
-      if attempts <= 3
+      retry_proc = proc do
+        log("Retrying submitting for beta review.")
         waiting_for_review_build = app.get_builds(
           filter: {"betaAppReviewSubmission.betaReviewState" => "WAITING_FOR_REVIEW,IN_REVIEW",
                    "expired" => false,
@@ -407,12 +391,11 @@ module AppStore
           waiting_for_review_build.expire!
           log("Expired build - #{waiting_for_review_build.version}.")
         end
-        attempts += 1
-        sleep attempts
-        log("Retrying submitting build #{build.version} for beta review.")
-        retry
-      else
-        raise e
+      end
+
+      execute_with_retry(AppStore::ReviewAlreadyInProgressError, retry_proc) do
+        log("Submitting beta build for review")
+        build.post_beta_app_review_submission if build.ready_for_beta_submission?
       end
     end
 
@@ -606,19 +589,10 @@ module AppStore
     end
 
     def get_build(build_number, includes = [])
-      attempts ||= 1
-
-      build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
-      raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
-      build
-    rescue BuildNotFoundError => e
-      if attempts <= 3
-        attempts += 1
-        sleep attempts
-        retry
-      else
-        Sentry.capture_exception(e)
-        raise e
+      execute_with_retry(BuildNotFoundError) do
+        build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
+        raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
+        build
       end
     end
 
@@ -630,6 +604,10 @@ module AppStore
       yield
     rescue Spaceship::UnexpectedResponse => e
       raise Spaceship::WrapperError.handle(e)
+    end
+
+    def execute_with_retry(exception_type, retry_proc = proc {})
+      Retryable.retryable(on: [exception_type], tries: 3, sleep: 5, exception_cb: retry_proc) { yield }
     end
 
     def log(msg, data = {})
