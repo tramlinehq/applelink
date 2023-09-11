@@ -85,6 +85,18 @@ module AppStore
     end
   end
 
+  class InvalidReviewStateError < StandardError
+    MSG = "The app store version is not in a valid state to submit for review"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :invalid_review_state)
+    end
+  end
+
   class SubmissionWithItemsExistError < StandardError
     MSG = "Cannot submit for review - a review submission already exists with items"
 

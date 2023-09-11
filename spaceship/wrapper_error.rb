@@ -32,6 +32,10 @@ module Spaceship
       {
         message_matcher: /Another build is in review/,
         decorated_exception: AppStore::ReviewAlreadyInProgressError
+      },
+      {
+        message_matcher: /Version is not ready to be submitted yet/i,
+        decorated_exception: AppStore::InvalidReviewStateError
       }
     ]
 

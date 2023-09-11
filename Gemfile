@@ -10,6 +10,7 @@ gem "hanami-api"
 gem "rack-jwt"
 gem "sentry-ruby"
 gem "ougai"
+gem "retryable"
 
 group :development, :test do
   gem "standard"
