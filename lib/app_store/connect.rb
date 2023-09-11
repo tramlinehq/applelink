@@ -39,6 +39,7 @@ module AppStore
 
     def self.halt_release(**params) = new(**params).halt_release
 
+    MAX_RETRIES = 3
     RETRY_BASE_SLEEP_SECONDS = 1
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
     VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations appStoreVersionSubmission].join(",").freeze
@@ -606,7 +607,7 @@ module AppStore
     end
 
     def execute_with_retry(exception_type, retry_proc = proc {})
-      Retryable.retryable(on: [exception_type], tries: 3, sleep: lambda { |n| n + RETRY_BASE_SLEEP_SECONDS }, exception_cb: retry_proc) { yield }
+      Retryable.retryable(on: [exception_type], tries: MAX_RETRIES, sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS }, exception_cb: retry_proc) { yield }
     end
 
     def log(msg, data = {})

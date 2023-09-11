@@ -93,7 +93,7 @@ module AppStore
     end
 
     def as_json
-      AppStore.error_as_json(:release, :review_in_progress)
+      AppStore.error_as_json(:release, :invalid_review_state)
     end
   end
 
