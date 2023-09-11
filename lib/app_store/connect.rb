@@ -607,7 +607,9 @@ module AppStore
     end
 
     def execute_with_retry(exception_type, retry_proc = proc {})
-      Retryable.retryable(on: [exception_type], tries: MAX_RETRIES, sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS }, exception_cb: retry_proc) { yield }
+      Retryable.retryable(on: [exception_type], tries: MAX_RETRIES, sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS }, exception_cb: retry_proc) do
+        execute { yield }
+      end
     end
 
     def log(msg, data = {})
