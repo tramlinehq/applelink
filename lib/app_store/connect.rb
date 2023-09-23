@@ -236,7 +236,7 @@ module AppStore
 
     def submit_review(submission, edit_version)
       execute_with_retry(AppStore::InvalidReviewStateError) do
-        log("Submitting app #{edit_version.version} for review")
+        log("Submitting app #{edit_version.version_string} for review")
         submission.submit_for_review
       end
     end
