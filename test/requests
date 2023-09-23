@@ -60,7 +60,7 @@ GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/builds/latest
 :group-id = 3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69
 
 # Add build to group
-PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:group-id/add_build
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/groups/:group-id/add_build
 :my-headers
 {
 "build_number": :build-number
@@ -68,7 +68,7 @@ PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/groups/:gro
 #
 
 # Prepare a release for submission
-POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/prepare
+POST http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release/prepare
 :my-headers
 {
 "build_number": :build-number,
@@ -82,15 +82,16 @@ POST http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/prep
 :version = "1.2.0"
 
 # Submit a release
-PATCH http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release/submit
+PATCH http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release/submit
 :my-headers
 {
-"build_number": :build-number
+"build_number": :build-number,
+"version": :version
 }
 #
 
 # Find a release that can be distributed
-GET http://127.0.0.1::port/apple/connect/v1/apps/com.tramline.ueno/release?build_number=:build-number
+GET http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release?build_number=:build-number
 :my-headers
 #
 
