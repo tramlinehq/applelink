@@ -393,7 +393,7 @@ module AppStore
         end
       end
 
-      execute_with_retry(AppStore::ReviewAlreadyInProgressError, retry_proc) do
+      execute_with_retry(AppStore::ReviewAlreadyInProgressError, retry_proc:) do
         log("Submitting beta build for review")
         build.post_beta_app_review_submission if build.ready_for_beta_submission?
       end
@@ -458,7 +458,7 @@ module AppStore
 
       log "Creating app store version with ", {body: body}
       api.tunes_request_client.post("appStoreVersions", body)
-      execute_with_retry(AppStore::VersionNotFoundError) do
+      execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 10, max_retries: 5) do
         log("Fetching the created app store version")
         inflight_version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise VersionNotFoundError unless inflight_version
@@ -611,8 +611,8 @@ module AppStore
       raise Spaceship::WrapperError.handle(e)
     end
 
-    def execute_with_retry(exception_type, retry_proc = proc {})
-      Retryable.retryable(on: [exception_type], tries: MAX_RETRIES, sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS }, exception_cb: retry_proc) do
+    def execute_with_retry(exception_type, retry_proc: proc {}, sleep_seconds: RETRY_BASE_SLEEP_SECONDS, max_retries: MAX_RETRIES)
+      Retryable.retryable(on: [exception_type], tries: max_retries, sleep: ->(n) { n + sleep_seconds }, exception_cb: retry_proc) do
         execute { yield }
       end
     end
