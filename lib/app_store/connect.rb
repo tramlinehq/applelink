@@ -440,7 +440,8 @@ module AppStore
         log "Cancelling the release for releasable app store version", latest_version.to_json
         latest_version.app_store_version_submission.delete!
 
-      when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION
+      when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+        api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED
 
         log "Found draft app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
