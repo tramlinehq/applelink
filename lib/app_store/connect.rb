@@ -458,7 +458,7 @@ module AppStore
 
       log "Creating app store version with ", {body: body}
       api.tunes_request_client.post("appStoreVersions", body)
-      execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 10, max_retries: 5) do
+      execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 15, max_retries: 8) do
         log("Fetching the created app store version")
         inflight_version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise VersionNotFoundError unless inflight_version
