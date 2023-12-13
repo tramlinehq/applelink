@@ -36,6 +36,10 @@ module Spaceship
       {
         message_matcher: /Version is not ready to be submitted yet/i,
         decorated_exception: AppStore::InvalidReviewStateError
+      },
+      {
+        message_matcher: /Attachment uploads still in progress/i,
+        decorated_exception: AppStore::AttachmentUploadInProgress
       }
     ]
 

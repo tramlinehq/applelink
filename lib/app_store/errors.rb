@@ -97,6 +97,18 @@ module AppStore
     end
   end
 
+  class AttachmentUploadInProgress < StandardError
+    MSG = "The app store version is not in a valid state to submit for review, attachment uploads still in progress"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :attachment_upload_in_progress)
+    end
+  end
+
   class SubmissionWithItemsExistError < StandardError
     MSG = "Cannot submit for review - a review submission already exists with items"
 
