@@ -596,7 +596,9 @@ module AppStore
 
     def get_build(build_number, includes = [])
       execute_with_retry(BuildNotFoundError) do
+        log "Fetching build with build number #{build_number}"
         build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
+        log("Found build with build number #{build_number}", build.to_json) if build
         raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
         build
       end
