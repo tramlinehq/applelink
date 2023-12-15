@@ -6,6 +6,7 @@ require "hanami/middleware/body_parser"
 require "sentry-ruby"
 require "rack/jwt/auth"
 require "rack/jwt"
+require "rack/runtime"
 require "./initializers/config"
 require "./initializers/sentry_config"
 require "./initializers/jwt"
@@ -127,6 +128,7 @@ class App < Hanami::API
 
   use Rack::Ougai::Logger
   use Rack::Ougai::RequestLogger
+  use Rack::Runtime
   use Sentry::Rack::CaptureExceptions
   use Hanami::Middleware::BodyParser, :json
 

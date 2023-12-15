@@ -33,14 +33,15 @@ module Rack
 
       private
 
-      def create_log(env, status, header)
+      def create_log(env, status, headers)
         {
           time: Time.now,
           remote_addr: env["HTTP_X_FORWARDED_FOR"] || env["REMOTE_ADDR"],
           method: env[REQUEST_METHOD],
           path: env[PATH_INFO],
           query: env[QUERY_STRING],
-          status: status.to_i
+          status: status.to_i,
+          duration: headers["X-Runtime"]
         }
       end
     end
