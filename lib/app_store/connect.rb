@@ -425,7 +425,7 @@ module AppStore
 
         submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
         log "Deleting rejected app store version submission", submission.to_json
-        submission.cancel_submission
+        submission&.cancel_submission
         return
 
       when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
