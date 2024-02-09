@@ -165,7 +165,7 @@ module AppStore
         update_export_compliance(build)
 
         log "Ensure an editable app store version", {version: version, build: build.version}
-        latest_version = ensure_editable_version(is_force)
+        latest_version = ensure_editable_version(is_force, build.version)
 
         if latest_version
           log "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
@@ -407,7 +407,7 @@ module AppStore
     end
 
     # no of api calls: 1-3
-    def ensure_editable_version(is_force)
+    def ensure_editable_version(is_force, build_number)
       latest_version = get_latest_app_store_version
 
       log "Latest app store version", latest_version.to_json
@@ -426,7 +426,6 @@ module AppStore
         submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
         log "Deleting rejected app store version submission", submission.to_json
         submission&.cancel_submission
-        return latest_version
 
       when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
         api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
@@ -444,6 +443,7 @@ module AppStore
         api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED
 
         log "Found draft app store version", latest_version.to_json
+        return latest_version if latest_version.build.version == build_number
         raise VersionAlreadyAddedToSubmissionError unless is_force
       end
 
