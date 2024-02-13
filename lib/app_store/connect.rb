@@ -443,7 +443,7 @@ module AppStore
         api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED
 
         log "Found draft app store version", latest_version.to_json
-        return latest_version if latest_version.build.version == build_number
+        return latest_version if latest_version.build&.version == build_number
         raise VersionAlreadyAddedToSubmissionError unless is_force
       end
 
