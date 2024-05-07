@@ -72,6 +72,10 @@ class AppleAppV1 < Hanami::API
         status(204)
       end
 
+      patch "cancel_submission" do
+        json(DOMAIN.cancel_review_submission(**env[:app_store_connect_params].merge(params)))
+      end
+
       patch "start" do
         DOMAIN.start_release(**env[:app_store_connect_params].merge(params))
         status(204)
