@@ -175,7 +175,9 @@ module AppStore
           latest_version = create_app_store_version(version, build)
         end
 
-        locale = latest_version.app_store_version_localizations.first
+        locale = latest_version.app_store_version_localizations.find { |l| metadata[:locale] == l.locale }
+        raise LocalizationNotFoundError if locale.nil?
+
         locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
           {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
         else
@@ -361,21 +363,37 @@ module AppStore
         version_string: inflight_version.version_string,
         status: inflight_version.app_store_state,
         release_date: inflight_version.created_date,
-        build_number: inflight_version.build&.version
+        build_number: inflight_version.build&.version,
+        localizations: build_localizations(inflight_version.app_store_version_localizations)
       }
     end
 
     # no of api calls: 2
     def live_app_info
-      live_version = app.get_live_app_store_version
+      live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
       return unless live_version
       {
         id: live_version.id,
         version_string: live_version.version_string,
         status: live_version.app_store_state,
         release_date: live_version.created_date,
-        build_number: live_version.build&.version
+        build_number: live_version.build&.version,
+        localizations: build_localizations(live_version.app_store_version_localizations)
       }
+    end
+
+    def build_localizations(localizations = [])
+      localizations.map do |localization|
+        {
+          language: localization.locale,
+          whats_new: localization.whats_new,
+          promotional_text: localization.promotional_text,
+          description: localization.description,
+          support_url: localization.support_url,
+          marketing_url: localization.marketing_url,
+          keywords: localization.keywords
+        }
+      end
     end
 
     # no of api calls: 1-4 ; +3 with every retry attempt
