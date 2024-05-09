@@ -154,7 +154,8 @@ module AppStore
         id: app.id,
         name: app.name,
         bundle_id: app.bundle_id,
-        sku: app.sku
+        sku: app.sku,
+        primary_locale: app.primary_locale
       }
     end
 
