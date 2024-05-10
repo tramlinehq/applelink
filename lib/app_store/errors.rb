@@ -219,10 +219,23 @@ module AppStore
     end
   end
 
+  class LocalizationNotFoundError < StandardError
+    MSG = "The localization for the app store version was not found"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:localization, :not_found, MSG)
+    end
+  end
+
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
-    AppStore::BetaGroupNotFoundError
+    AppStore::BetaGroupNotFoundError,
+    AppStore::LocalizationNotFoundError
   ]
 
   ERRORS = [

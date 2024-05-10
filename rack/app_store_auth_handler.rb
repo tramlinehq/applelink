@@ -14,7 +14,7 @@ module Rack
       @app.call env
     rescue Spaceship::WrapperToken::TokenExpiredError => e
       env[RACK_LOGGER].error e
-      return_unauthorized_error "Invalid auth token for apple store connect API"
+      return_unauthorized_error({message: "Invalid auth token for apple store connect API"})
     end
   end
 end
