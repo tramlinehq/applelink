@@ -61,6 +61,18 @@ module AppStore
     end
   end
 
+  class SubmissionNotFoundError < StandardError
+    MSG = "No in progress review submission found"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:submission, :not_found, MSG)
+    end
+  end
+
   class BuildMismatchError < StandardError
     MSG = "The build on the release in app store does not match the build number"
 

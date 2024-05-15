@@ -25,6 +25,8 @@ module AppStore
 
     def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number, :version))
 
+    def self.cancel_review_submission(**params) = new(**params).cancel_review_submission(**params.slice(:build_number, :version))
+
     def self.release(**params) = new(**params).release(**params.slice(:build_number))
 
     def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
@@ -241,6 +243,22 @@ module AppStore
       execute_with_retry(AppStore::InvalidReviewStateError) do
         log("Submitting app #{edit_version.version_string} for review")
         submission.submit_for_review
+      end
+    end
+
+    def cancel_review_submission(build_number:, version:)
+      execute do
+        edit_version = app
+          .get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
+          .find { |v| v.build&.version == build_number.to_s && v.version_string == version }
+        raise VersionNotFoundError unless edit_version
+
+        sub = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+
+        raise SubmissionNotFoundError unless sub
+        sub.cancel_submission
+
+        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
       end
     end
 
