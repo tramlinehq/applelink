@@ -178,21 +178,7 @@ module AppStore
           latest_version = create_app_store_version(version, build)
         end
 
-        locale = latest_version.app_store_version_localizations.find { |l| metadata[:locale] == l.locale }
-        raise LocalizationNotFoundError if locale.nil?
-
-        locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
-          {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
-        else
-          {"whatsNew" => metadata[:whats_new]}
-        end
-
-        unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
-          locale_params["promotionalText"] = metadata[:promotional_text]
-        end
-
-        log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
-        locale.update(attributes: locale_params)
+        metadata.each { update_version_locale!(latest_version, _1) }
 
         if is_phased_release && latest_version.app_store_version_phased_release.nil?
           log "Creating phased release for the app store version"
@@ -502,6 +488,24 @@ module AppStore
         raise VersionNotFoundError unless inflight_version
         inflight_version
       end
+    end
+
+    def update_version_locale!(app_store_version, metadata)
+      locale = app_store_version.app_store_version_localizations.find { |l| metadata[:locale] == l.locale }
+      return if locale.nil?
+
+      locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
+        {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
+      else
+        {"whatsNew" => metadata[:whats_new]}
+      end
+
+      unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
+        locale_params["promotionalText"] = metadata[:promotional_text]
+      end
+
+      log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
+      locale.update(attributes: locale_params)
     end
 
     # no of api calls: 1
