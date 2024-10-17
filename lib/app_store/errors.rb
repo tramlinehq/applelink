@@ -141,6 +141,18 @@ module AppStore
     end
   end
 
+  class PhasedReleaseAlreadyFinalError < StandardError
+    MSG = "The current phased release is already finished"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :phased_release_already_final, MSG)
+    end
+  end
+
   class PhasedReleaseNotFoundError < StandardError
     MSG = "The current live release does not have a staged rollout"
 
@@ -231,6 +243,7 @@ module AppStore
     end
   end
 
+  # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
@@ -238,6 +251,7 @@ module AppStore
     AppStore::LocalizationNotFoundError
   ]
 
+  # 422
   ERRORS = [
     AppStore::ExportComplianceNotFoundError,
     AppStore::BuildSubmissionForReviewNotAllowedError,
@@ -251,5 +265,11 @@ module AppStore
     AppStore::VersionNotEditableError
   ]
 
-  CONFLICT_ERRORS = [AppStore::PhasedReleaseAlreadyInStateError, AppStore::ReleaseNotEditableError, AppStore::ReleaseAlreadyHaltedError]
+  # 409
+  CONFLICT_ERRORS = [
+    AppStore::PhasedReleaseAlreadyInStateError,
+    AppStore::PhasedReleaseAlreadyFinalError,
+    AppStore::ReleaseNotEditableError,
+    AppStore::ReleaseAlreadyHaltedError
+  ]
 end

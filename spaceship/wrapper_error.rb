@@ -6,11 +6,11 @@ module Spaceship
         decorated_exception: AppStore::BuildSubmissionForReviewNotAllowedError
       },
       {
-        message_matcher: /You cannot update when the value is already set. - \/data\/attributes\/usesNonExemptEncryption/,
+        message_matcher: %r{You cannot update when the value is already set. - /data/attributes/usesNonExemptEncryption},
         decorated_exception: AppStore::ExportComplianceAlreadyUpdatedError
       },
       {
-        message_matcher: /The phased release already has this value - \/data\/attributes\/phasedReleaseState/,
+        message_matcher: %r{The phased release already has this value - /data/attributes/phasedReleaseState},
         decorated_exception: AppStore::PhasedReleaseAlreadyInStateError
       },
       {
@@ -18,15 +18,15 @@ module Spaceship
         decorated_exception: AppStore::VersionAlreadyAddedToSubmissionError
       },
       {
-        message_matcher: /The version number has been previously used. - \/data\/attributes\/versionString/,
+        message_matcher: %r{The version number has been previously used. - /data/attributes/versionString},
         decorated_exception: AppStore::VersionAlreadyExistsError
       },
       {
-        message_matcher: /An attribute value is not acceptable for the current resource state. - The attribute 'versionString' can not be modified. - \/data\/attributes\/versionString/,
+        message_matcher: %r{An attribute value is not acceptable for the current resource state. - The attribute 'versionString' can not be modified. - /data/attributes/versionString},
         decorated_exception: AppStore::VersionNotEditableError
       },
       {
-        message_matcher: /A relationship value is not acceptable for the current resource state. - The specified pre-release build could not be added. - \/data\/relationships\/build/,
+        message_matcher: %r{A relationship value is not acceptable for the current resource state. - The specified pre-release build could not be added. - /data/relationships/build},
         decorated_exception: AppStore::VersionNotEditableError
       },
       {
@@ -40,8 +40,12 @@ module Spaceship
       {
         message_matcher: /Attachment uploads still in progress/i,
         decorated_exception: AppStore::AttachmentUploadInProgress
+      },
+      {
+        message_matcher: /You cannot change the state of a phased release that is in a final state/i,
+        decorated_exception: AppStore::PhasedReleaseAlreadyFinalError
       }
-    ]
+    ].freeze
 
     def self.handle(exception)
       new(exception).handle
