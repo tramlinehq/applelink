@@ -41,7 +41,7 @@ module Rack
           path: env[PATH_INFO],
           query: env[QUERY_STRING],
           status: status.to_i,
-          duration: headers["X-Runtime"]
+          duration: headers&.dig("X-Runtime")
         }
       end
     end
