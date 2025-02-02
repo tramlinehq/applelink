@@ -648,6 +648,7 @@ module AppStore
         build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
         log("Found build with build number #{build_number}", build.to_json) if build
         raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
+        build = update_export_compliance(build)
         build
       end
     end
