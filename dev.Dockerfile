@@ -6,7 +6,7 @@
 ARG RUBY_VERSION=3.2.0
 ARG DISTRO_NAME=bullseye
 
-FROM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
+FROM --platform=$TARGETPLATFORM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
 
 ARG DISTRO_NAME
 
@@ -20,3 +20,6 @@ RUN apt-get update -qq && \
 # Copy application code
 COPY . .
 RUN bundle install
+
+EXPOSE 9292
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]
