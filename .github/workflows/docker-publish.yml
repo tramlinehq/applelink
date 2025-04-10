@@ -3,6 +3,8 @@ name: Docker Build and Publish to GitHub Container Registry
 on:
   push:
     branches: [main]
+  pull_request: # TODO: Remove this once before merging to main
+    branches: [main]
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: tramlinehq/applelink
