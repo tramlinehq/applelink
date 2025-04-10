@@ -6,16 +6,30 @@
 ARG RUBY_VERSION=3.2.0
 ARG DISTRO_NAME=bullseye
 
-FROM --platform=$TARGETPLATFORM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
+FROM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
 
 ARG DISTRO_NAME
 
 # Rails app lives here
 WORKDIR /applelink
 
-# Install base packages
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y curl libjemalloc2 libvips gnupg2 less build-essential git pkg-config jq vim libnss3-tools
+# Install base packages with retry mechanism
+RUN apt-get update -qq || (sleep 5 && apt-get update -qq) || (sleep 10 && apt-get update -qq) && \
+    apt-get install --no-install-recommends -y \
+    curl \
+    libjemalloc2 \
+    gnupg2 \
+    less \
+    build-essential \
+    git \
+    pkg-config \
+    jq \
+    vim \
+    libnss3-tools && \
+    # Install libvips in a separate command to isolate potential issues
+    apt-get install --no-install-recommends -y libvips && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy application code
 COPY . .
