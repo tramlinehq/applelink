@@ -1,12 +1,15 @@
 # syntax = docker/dockerfile:1
 
+# Multi-platform build example:
+# docker buildx build --platform linux/amd64,linux/arm64 -t my-app:latest --push .
+
 # docker build -t my-app .
 # docker run -d -p 80:80 -p 443:443 --name my-app -e RAILS_MASTER_KEY=<value from config/master.key> my-app
 # Make sure RUBY_VERSION matches the Ruby version in .ruby-version
 ARG RUBY_VERSION=3.2.0
 ARG DISTRO_NAME=bullseye
 
-FROM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
+FROM --platform=${BUILDPLATFORM:-linux/amd64} ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
 
 # Rails app lives here
 WORKDIR /applelink
@@ -24,7 +27,7 @@ RUN apt-get update -qq && \
     rm -rf /var/lib/apt/lists/*
 
 # Create a builder stage that installs build dependencies
-FROM base as builder
+FROM --platform=${BUILDPLATFORM:-linux/amd64} base AS builder
 
 # Install build dependencies
 RUN apt-get update -qq && \
@@ -35,16 +38,22 @@ RUN apt-get update -qq && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Copy .ruby-version file first (needed by Gemfile)
+COPY .ruby-version ./
+
 # Copy gemfile and install dependencies
 COPY Gemfile Gemfile.lock ./
-RUN bundle config set --local without 'development test' && \
+
+# Use specific bundler version to match Gemfile.lock
+RUN gem install bundler -v 2.4.2 && \
+    bundle config set --local without 'development test' && \
     bundle install --jobs=4 --retry=3
 
 # Copy application code
 COPY . .
 
 # Final image with runtime dependencies only
-FROM base
+FROM --platform=${TARGETPLATFORM:-linux/amd64} base
 
 # Install runtime dependencies only
 RUN apt-get update -qq && \
