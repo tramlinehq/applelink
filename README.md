@@ -724,13 +724,3 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > ```
 
 </details>
-
-## Quick Note on the Docker Images: Platform Support
-
-This application is packaged as a multi-architecture Docker image that supports:
-- Intel/AMD 64-bit (linux/amd64)
-- ARM 64-bit (linux/arm64)
-
-These architectures cover most modern Linux servers and all Mac systems (both Intel and Apple Silicon).
-
-Windows users can run the application using Docker Desktop with WSL2 backend, which uses the Linux container images.
