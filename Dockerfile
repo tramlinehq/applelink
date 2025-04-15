@@ -1,7 +1,10 @@
 ARG RUBY_VERSION=3.2.0
 ARG DISTRO_NAME=bullseye
 
-FROM --platform=${BUILDPLATFORM:-linux/amd64} ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS base
+FROM --platform=${BUILDPLATFORM:-linux/amd64} ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    BUNDLE_PATH="/usr/local/bundle"
 
 WORKDIR /applelink
 
@@ -12,35 +15,28 @@ RUN apt-get update -qq && \
     gnupg2 \
     less \
     git \
-    libnss3-tools && \
-    apt-get clean && \
+    libnss3-tools \
+    libvips42 && \
     rm -rf /var/lib/apt/lists/*
 
-FROM --platform=${BUILDPLATFORM:-linux/amd64} base AS builder
+FROM runtime AS builder
 
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
     build-essential \
     pkg-config \
     libvips-dev && \
-    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 COPY Gemfile Gemfile.lock .ruby-version ./
 
-RUN gem install bundler -v 2.4.2 && \
+RUN gem install bundler:2.4.2 && \
     bundle config set --local without 'development test' && \
-    bundle install --jobs=4 --retry=3
+    bundle install --jobs 4 --retry 3
 
 COPY . .
 
-FROM --platform=${TARGETPLATFORM:-linux/amd64} base
-
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y \
-    libvips42 && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+FROM runtime
 
 COPY --from=builder /usr/local/bundle /usr/local/bundle
 COPY --from=builder /applelink /applelink
