@@ -637,24 +637,25 @@ module AppStore
         data_items = response.dig("data") || []
 
         data_items.filter_map do |item|
-          item_state = item.dig("attributes", "state")
-          next unless item_state == "READY_FOR_REVIEW"
+          next unless item.dig("attributes", "state") == "READY_FOR_REVIEW"
+
           relationships = item.dig("relationships") || {}
 
-          # check each relationship type (excluding appStoreVersion)
-          review_items_includes.each do |rel_type|
-            rel_data = relationships.dig(rel_type, "data")
-
-            if rel_data
-              return {
-                type: rel_data["type"],
-                id: rel_data["id"],
-                link: item.dig("links", "self")
-              }
-            end
+          # each item can be only be one of the possible review item types
+          # so we just pick the first non-nil one
+          rel_type = review_items_includes.find do |type|
+            relationships.dig(type, "data")
           end
 
-          nil
+          if rel_type
+            rel_data = relationships.dig(rel_type, "data")
+            {
+              type: rel_data["type"],
+              id: rel_data["id"],
+              link: item.dig("links", "self"),
+              status: "READY_FOR_REVIEW"
+            }
+          end
         end
       end
 
