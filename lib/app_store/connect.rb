@@ -221,11 +221,7 @@ module AppStore
         end
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
-
-        raise SubmissionWithItemsExistError if submission && !submission.items.empty?
-
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
-
         submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
 
         submit_review(submission, edit_version)
