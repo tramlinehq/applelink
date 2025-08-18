@@ -263,7 +263,7 @@ module AppStore
           raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
         end
 
-        existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "appStoreVersionForReview,items")
+        existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
         review_items = get_other_ready_review_items(existing_submission)
         release_data(version, review_items)
       end
@@ -579,7 +579,7 @@ module AppStore
     end
 
     def release_data(version, review_submission_items)
-      version_data(version).merge(review_submission_items)
+      version_data(version).merge(review_submission_items: review_submission_items)
     end
 
     def version_data(version)
@@ -633,7 +633,7 @@ module AppStore
         includes: review_items_includes.join(",")
       ).all_pages.map(&:body)
 
-      filtered_items = responses.flat_map do |response|
+      responses.flat_map do |response|
         data_items = response.dig("data") || []
 
         data_items.filter_map do |item|
@@ -658,8 +658,6 @@ module AppStore
           end
         end
       end
-
-      {review_submission_items: filtered_items}
     end
 
     def update_export_compliance(build)
