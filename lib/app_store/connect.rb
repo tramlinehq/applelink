@@ -221,6 +221,12 @@ module AppStore
         end
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
+
+        if submission
+          review_items = get_review_submission_items(submission.id, "appStoreVersion")
+          raise SubmissionWithItemsExistError if review_items&.any?
+        end
+
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
         submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
 
@@ -264,8 +270,16 @@ module AppStore
         end
 
         existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
-        review_items = get_other_ready_review_items(existing_submission)
-        release_data(version, review_items)
+        if existing_submission
+          review_submission_items = get_other_ready_review_items(existing_submission)
+          if review_submission_items&.any?
+            version_data(version).merge(review_submission_items:)
+          else
+            version_data(version)
+          end
+        else
+          version_data(version)
+        end
       end
     end
 
@@ -578,10 +592,6 @@ module AppStore
       end
     end
 
-    def release_data(version, review_submission_items)
-      version_data(version).merge(review_submission_items: review_submission_items)
-    end
-
     def version_data(version)
       {
         id: version.id,
@@ -627,11 +637,7 @@ module AppStore
     # fetch all non-appStoreVersion submission items that are ready for review
     def get_other_ready_review_items(submission_id)
       review_items_includes = %w[appStoreVersionExperiment appCustomProductPageVersion appEvent]
-
-      responses = api.get_review_submission_items(
-        review_submission_id: submission_id,
-        includes: review_items_includes.join(",")
-      ).all_pages.map(&:body)
+      responses = get_review_submission_items(submission_id, review_items_includes.join(","))
 
       responses.flat_map do |response|
         data_items = response.dig("data") || []
@@ -658,6 +664,10 @@ module AppStore
           end
         end
       end
+    end
+
+    def get_review_submission_items(submission_id, includes)
+      api.get_review_submission_items(review_submission_id: submission_id, includes:).all_pages.map(&:body)
     end
 
     def update_export_compliance(build)
