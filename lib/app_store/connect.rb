@@ -271,7 +271,7 @@ module AppStore
 
         existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
         if existing_submission
-          review_submission_items = get_other_ready_review_items(existing_submission)
+          review_submission_items = get_other_ready_review_items(existing_submission.id)
           if review_submission_items&.any?
             version_data(version).merge(review_submission_items:)
           else
@@ -612,9 +612,7 @@ module AppStore
 
     def get_builds_for_group(group_id, limit = 2)
       api.get_builds(
-        filter: {app: app.id,
-                 betaGroups: group_id,
-                 expired: "false"},
+        filter: {app: app.id, betaGroups: group_id, expired: "false"},
         sort: "-uploadedDate",
         includes: "buildBetaDetail,preReleaseVersion",
         limit: limit
@@ -636,6 +634,7 @@ module AppStore
 
     # fetch all non-appStoreVersion submission items that are ready for review
     def get_other_ready_review_items(submission_id)
+      log "Fetching any non-appStoreVersion review items "
       review_items_includes = %w[appStoreVersionExperiment appCustomProductPageVersion appEvent]
       responses = get_review_submission_items(submission_id, review_items_includes.join(","))
 
@@ -644,7 +643,6 @@ module AppStore
 
         data_items.filter_map do |item|
           next unless item.dig("attributes", "state") == "READY_FOR_REVIEW"
-
           relationships = item.dig("relationships") || {}
 
           # each item can be only be one of the possible review item types
@@ -658,7 +656,6 @@ module AppStore
             {
               type: rel_data["type"],
               id: rel_data["id"],
-              link: item.dig("links", "self"),
               status: "READY_FOR_REVIEW"
             }
           end
