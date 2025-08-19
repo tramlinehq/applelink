@@ -197,7 +197,11 @@ module AppStore
           latest_version.app_store_version_phased_release.delete!
         end
 
-        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
+        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
+        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
+        review_submission_items = []
+        review_submission_items = get_other_ready_review_items(submission.id) if submission
+        release_data(version, submission, review_submission_items)
       end
     end
 
@@ -222,10 +226,12 @@ module AppStore
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
 
-        raise SubmissionWithItemsExistError if submission && !submission.items.empty?
+        if submission
+          existing_reviewable_app_store_version = get_ready_app_store_version_item(submission.id)
+          raise SubmissionWithItemsExistError if existing_reviewable_app_store_version&.any?
+        end
 
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
-
         submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
 
         submit_review(submission, edit_version)
@@ -255,20 +261,22 @@ module AppStore
       end
     end
 
-    # no of api calls: 2
+    # no of api calls: 2 + 2
     def release(build_number: nil)
       execute do
         if build_number.nil? || build_number.empty?
           version = current_inflight_release
-
           raise VersionNotFoundError.new("No inflight release found") unless version
         else
           version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
             .find { |v| v.build&.version == build_number }
-
           raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
         end
-        version_data(version)
+
+        existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
+        review_submission_items = []
+        review_submission_items = get_other_ready_review_items(existing_submission.id) if existing_submission
+        release_data(version, existing_submission, review_submission_items)
       end
     end
 
@@ -489,6 +497,7 @@ module AppStore
 
       log "Creating app store version with ", {body: body}
       api.tunes_request_client.post("appStoreVersions", body)
+
       execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 15, max_retries: 10) do
         log("Fetching the created app store version")
         inflight_version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
@@ -598,11 +607,16 @@ module AppStore
       }
     end
 
+    def release_data(version, submission, review_submission_items)
+      ready_review_submission = {ready_review_submission: {}}
+      ready_review_submission[:ready_review_submission] = {id: submission.id} if submission
+      ready_review_submission[:ready_review_submission][:items] = review_submission_items if review_submission_items&.any?
+      version_data(version).merge(ready_review_submission)
+    end
+
     def get_builds_for_group(group_id, limit = 2)
       api.get_builds(
-        filter: {app: app.id,
-                 betaGroups: group_id,
-                 expired: "false"},
+        filter: {app: app.id, betaGroups: group_id, expired: "false"},
         sort: "-uploadedDate",
         includes: "buildBetaDetail,preReleaseVersion",
         limit: limit
@@ -620,6 +634,46 @@ module AppStore
         processing_state: build.processing_state,
         version_string: build.pre_release_version&.version
       }
+    end
+
+    # fetch all non-appStoreVersion submission items that are ready for review
+    def get_other_ready_review_items(submission_id)
+      log "Fetching any non-appStoreVersion review items "
+      review_items_includes = %w[appStoreVersionExperiment appCustomProductPageVersion appEvent]
+      responses = get_review_submission_items(submission_id, review_items_includes.join(","))
+
+      responses.flat_map do |response|
+        data_items = response.dig("data") || []
+
+        data_items.filter_map do |item|
+          next unless item.dig("attributes", "state") == "READY_FOR_REVIEW"
+          relationships = item.dig("relationships") || {}
+
+          # each item can be only be one of the possible review item types
+          # so we just pick the first non-nil one
+          rel_type = review_items_includes.find do |type|
+            relationships.dig(type, "data")
+          end
+
+          if rel_type
+            rel_data = relationships.dig(rel_type, "data")
+            {
+              type: rel_type,
+              id: rel_data["id"],
+              status: "READY_FOR_REVIEW"
+            }
+          end
+        end
+      end
+    end
+
+    def get_ready_app_store_version_item(submission_id)
+      responses = get_review_submission_items(submission_id, "appStoreVersion")
+      responses.dig(0, "relationships", "appStoreVersion", "data")
+    end
+
+    def get_review_submission_items(submission_id, includes)
+      api.get_review_submission_items(review_submission_id: submission_id, includes:).all_pages.map(&:body)
     end
 
     def update_export_compliance(build)
