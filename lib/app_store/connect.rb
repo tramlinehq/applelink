@@ -197,7 +197,11 @@ module AppStore
           latest_version.app_store_version_phased_release.delete!
         end
 
-        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
+        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
+        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
+        review_submission_items = []
+        review_submission_items = get_other_ready_review_items(submission.id) if submission
+        release_data(version, submission, review_submission_items)
       end
     end
 
@@ -223,8 +227,8 @@ module AppStore
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
 
         if submission
-          review_items = get_review_submission_items(submission.id, "appStoreVersion")
-          raise SubmissionWithItemsExistError if review_items&.any?
+          existing_reviewable_app_store_version = get_ready_app_store_version_item(submission.id)
+          raise SubmissionWithItemsExistError if existing_reviewable_app_store_version&.any?
         end
 
         submission ||= app.create_review_submission(platform: IOS_PLATFORM)
@@ -270,16 +274,9 @@ module AppStore
         end
 
         existing_submission = app.get_ready_review_submission(platform: IOS_PLATFORM)
-        if existing_submission
-          review_submission_items = get_other_ready_review_items(existing_submission.id)
-          if review_submission_items&.any?
-            version_data(version).merge(review_submission_items:)
-          else
-            version_data(version)
-          end
-        else
-          version_data(version)
-        end
+        review_submission_items = []
+        review_submission_items = get_other_ready_review_items(existing_submission.id) if existing_submission
+        release_data(version, existing_submission, review_submission_items)
       end
     end
 
@@ -610,6 +607,13 @@ module AppStore
       }
     end
 
+    def release_data(version, submission, review_submission_items)
+      ready_review_submission = {ready_review_submission: {}}
+      ready_review_submission[:ready_review_submission] = {id: submission.id} if submission
+      ready_review_submission[:ready_review_submission][:items] = review_submission_items if review_submission_items&.any?
+      version_data(version).merge(ready_review_submission)
+    end
+
     def get_builds_for_group(group_id, limit = 2)
       api.get_builds(
         filter: {app: app.id, betaGroups: group_id, expired: "false"},
@@ -654,13 +658,18 @@ module AppStore
           if rel_type
             rel_data = relationships.dig(rel_type, "data")
             {
-              type: rel_data["type"],
+              type: rel_type,
               id: rel_data["id"],
               status: "READY_FOR_REVIEW"
             }
           end
         end
       end
+    end
+
+    def get_ready_app_store_version_item(submission_id)
+      responses = get_review_submission_items(submission_id, "appStoreVersion")
+      responses.dig(0, "relationships", "appStoreVersion", "data")
     end
 
     def get_review_submission_items(submission_id, includes)
