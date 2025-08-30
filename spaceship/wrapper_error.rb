@@ -44,6 +44,10 @@ module Spaceship
       {
         message_matcher: /You cannot change the state of a phased release that is in a final state/i,
         decorated_exception: AppStore::PhasedReleaseAlreadyFinalError
+      },
+      {
+        message_matcher: /Resource reviewSubmissions with id .* cannot be found/i,
+        decorated_exception: AppStore::ReviewSubmissionNotFound
       }
     ].freeze
 

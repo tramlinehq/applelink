@@ -239,7 +239,7 @@ module AppStore
     end
 
     def submit_review(submission, edit_version)
-      execute_with_retry(AppStore::InvalidReviewStateError) do
+      execute_with_retry([AppStore::InvalidReviewStateError, AppStore::ReviewSubmissionNotFound]) do
         log("Submitting app #{edit_version.version_string} for review")
         submission.submit_for_review
       end
@@ -717,8 +717,9 @@ module AppStore
       raise Spaceship::WrapperError.handle(e)
     end
 
-    def execute_with_retry(exception_type, retry_proc: proc {}, sleep_seconds: RETRY_BASE_SLEEP_SECONDS, max_retries: MAX_RETRIES)
-      Retryable.retryable(on: [exception_type], tries: max_retries, sleep: ->(n) { n + sleep_seconds }, exception_cb: retry_proc) do
+    def execute_with_retry(exception_types, retry_proc: proc {}, sleep_seconds: RETRY_BASE_SLEEP_SECONDS, max_retries: MAX_RETRIES)
+      on = exception_types.is_a?(Array) ? exception_types : [exception_types]
+      Retryable.retryable(on:, tries: max_retries, sleep: ->(n) { n + sleep_seconds }, exception_cb: retry_proc) do
         execute { yield }
       end
     end
