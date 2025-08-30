@@ -243,12 +243,25 @@ module AppStore
     end
   end
 
+  class ReviewSubmissionNotFound < StandardError
+    MSG = "The review submission was not found"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :review_submission_not_found, MSG)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError,
-    AppStore::LocalizationNotFoundError
+    AppStore::LocalizationNotFoundError,
+    AppStore::ReviewSubmissionNotFound
   ]
 
   # 422
