@@ -5,6 +5,7 @@ require "retryable"
 require_relative "../../spaceship/wrapper_token"
 require_relative "../../spaceship/wrapper_error"
 require_relative "upload"
+require_relative "upload_status"
 
 module AppStore
   class Connect
@@ -35,6 +36,8 @@ module AppStore
     def self.live_release(**params) = new(**params).live_release
 
     def self.upload_ipa(**params) = new(**params).upload_ipa(**params)
+
+    def self.upload_status(**params) = new(**params).upload_status(**params)
 
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
 
@@ -372,12 +375,22 @@ module AppStore
     end
 
     def upload_ipa(app_id:, ipa_url:, cf_bundle_short_version:, cf_bundle_version:, **)
-      Upload.new(token: api.token).call(
+      upload_status = UploadStatus.create(
         app_id: app_id,
+        bundle_id: bundle_id,
         ipa_url: ipa_url,
         cf_bundle_short_version: cf_bundle_short_version,
         cf_bundle_version: cf_bundle_version
       )
+
+      Upload.perform_async(token: api.token, upload_status: upload_status)
+      upload_status.to_h
+    end
+
+    def upload_status(upload_id:, **)
+      status = UploadStatus.find(upload_id)
+      raise UploadNotFoundError unless status
+      status.to_h
     end
 
     private

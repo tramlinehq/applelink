@@ -303,13 +303,26 @@ module AppStore
     end
   end
 
+  class UploadNotFoundError < StandardError
+    MSG = "Upload not found"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:upload, :not_found, MSG)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError,
     AppStore::LocalizationNotFoundError,
-    AppStore::ReviewSubmissionNotFound
+    AppStore::ReviewSubmissionNotFound,
+    AppStore::UploadNotFoundError
   ]
 
   # 422

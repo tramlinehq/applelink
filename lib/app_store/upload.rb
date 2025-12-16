@@ -5,6 +5,7 @@ require "tempfile"
 require "ougai"
 require "retryable"
 require_relative "errors"
+require_relative "upload_status"
 
 module AppStore
   class Upload
@@ -14,38 +15,56 @@ module AppStore
     RETRY_BASE_SLEEP_SECONDS = 1
     PART_UPLOAD_TIMEOUT = 300 # 5 minutes per part
 
-    def initialize(token:)
+    def self.perform_async(token:, upload_status:)
+      Thread.new do
+        new(token: token, upload_status: upload_status).call
+      rescue => e
+        logger = ::Ougai::Logger.new($stdout)
+        logger.error("Background upload failed", {upload_id: upload_status.id, error: e.message, backtrace: e.backtrace&.first(5)})
+        Sentry.capture_exception(e) if defined?(Sentry)
+      end
+    end
+
+    def initialize(token:, upload_status:)
       @token = token
+      @upload_status = upload_status
       @logger = ::Ougai::Logger.new($stdout)
     end
 
-    def call(app_id:, ipa_url:, cf_bundle_short_version:, cf_bundle_version:)
-      ipa_path = download_ipa(ipa_url)
+    def call
+      ipa_path = nil
 
       begin
-        ipa_name = File.basename(URI.parse(ipa_url).path)
+        # Step 1: Download IPA
+        @upload_status.transition_to!("downloading")
+        ipa_path = download_ipa(@upload_status.ipa_url)
+
+        ipa_name = File.basename(URI.parse(@upload_status.ipa_url).path)
         ipa_size = File.size(ipa_path)
 
+        @upload_status.update(ipa_name: ipa_name, ipa_size: ipa_size)
+
         log("Starting IPA upload", {
-          app_id: app_id,
+          upload_id: @upload_status.id,
+          app_id: @upload_status.app_id,
           ipa_name: ipa_name,
-          ipa_size: ipa_size,
-          cf_bundle_short_version: cf_bundle_short_version,
-          cf_bundle_version: cf_bundle_version
+          ipa_size: ipa_size
         })
 
-        # Step 1: Create build upload
+        # Step 2: Create build upload and upload file
+        @upload_status.transition_to!("uploading")
+
         build_upload = create_build_upload(
-          app_id: app_id,
-          cf_bundle_short_version: cf_bundle_short_version,
-          cf_bundle_version: cf_bundle_version
+          app_id: @upload_status.app_id,
+          cf_bundle_short_version: @upload_status.cf_bundle_short_version,
+          cf_bundle_version: @upload_status.cf_bundle_version
         )
         build_upload_id = build_upload.dig("data", "id")
         raise IpaUploadError.new("Failed to create build upload") unless build_upload_id
 
+        @upload_status.update(build_upload_id: build_upload_id)
         log("Created build upload", {build_upload_id: build_upload_id})
 
-        # Step 2: Create build upload file
         build_upload_file = create_build_upload_file(
           build_upload_id: build_upload_id,
           ipa_name: ipa_name,
@@ -57,6 +76,10 @@ module AppStore
         upload_operations = build_upload_file.dig("data", "attributes", "uploadOperations") || []
         raise IpaUploadError.new("No upload operations found") if upload_operations.empty?
 
+        @upload_status.update(
+          build_upload_file_id: build_upload_file_id,
+          parts_total: upload_operations.size
+        )
         log("Created build upload file", {
           build_upload_file_id: build_upload_file_id,
           parts_count: upload_operations.size
@@ -64,24 +87,22 @@ module AppStore
 
         # Step 3: Upload parts
         upload_parts(ipa_path: ipa_path, upload_operations: upload_operations)
-
         log("All parts uploaded successfully")
 
         # Step 4: Commit the upload
+        @upload_status.transition_to!("committing")
         commit_upload(build_upload_file_id: build_upload_file_id)
-
         log("Upload committed successfully")
 
-        # Step 5: Get final status
-        build_upload_status = get_build_upload_status(build_upload_id: build_upload_id)
+        # Step 5: Mark as completed
+        @upload_status.transition_to!("completed")
+        log("Upload completed", {upload_id: @upload_status.id})
 
-        {
-          build_upload_id: build_upload_id,
-          build_upload_file_id: build_upload_file_id,
-          status: build_upload_status.dig("data", "attributes", "processingState"),
-          ipa_name: ipa_name,
-          ipa_size: ipa_size
-        }
+        @upload_status
+      rescue => e
+        log("Upload failed", {upload_id: @upload_status.id, error: e.message})
+        @upload_status.fail!(e.message)
+        raise
       ensure
         cleanup_temp_file(ipa_path)
       end
@@ -170,7 +191,6 @@ module AppStore
 
         log("Uploading part", {part_number: part_number, offset: offset, length: length})
 
-        # Read the slice of the file
         slice_data = File.open(ipa_path, "rb") do |file|
           file.seek(offset)
           file.read(length)
@@ -182,11 +202,18 @@ module AppStore
           headers: request_headers,
           part_number: part_number
         )
+
+        @upload_status.increment_parts_uploaded!
       end
     end
 
     def upload_part_with_retry(url:, data:, headers:, part_number:)
-      Retryable.retryable(on: [IpaPartUploadError, Net::OpenTimeout, Net::ReadTimeout], tries: MAX_RETRIES, sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS }) do
+      Retryable.retryable(
+        on: [IpaPartUploadError, Net::OpenTimeout, Net::ReadTimeout],
+        tries: MAX_RETRIES,
+        sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS },
+        exception_cb: proc { @upload_status.increment_retry_count! }
+      ) do
         upload_part(url: url, data: data, headers: headers, part_number: part_number)
       end
     end
@@ -198,7 +225,6 @@ module AppStore
       http.use_ssl = uri.scheme == "https"
       http.open_timeout = 30
       http.read_timeout = PART_UPLOAD_TIMEOUT
-      # Force HTTP/1.1 like the bash script does
       http.max_version = OpenSSL::SSL::TLS1_2_VERSION if http.respond_to?(:max_version=)
 
       request = Net::HTTP::Put.new(uri)
@@ -227,10 +253,6 @@ module AppStore
       }
 
       asc_request(:patch, "buildUploadFiles/#{build_upload_file_id}", body)
-    end
-
-    def get_build_upload_status(build_upload_id:)
-      asc_request(:get, "buildUploads/#{build_upload_id}")
     end
 
     def asc_request(method, endpoint, body = nil)

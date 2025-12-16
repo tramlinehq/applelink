@@ -11,6 +11,7 @@ gem "rack-jwt"
 gem "sentry-ruby"
 gem "ougai"
 gem "retryable"
+gem "sqlite3"
 
 group :development, :test do
   gem "standard"
