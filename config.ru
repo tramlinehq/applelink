@@ -122,6 +122,10 @@ class AppleAppV1 < Hanami::API
         status(204)
       end
     end
+
+    post "upload" do
+      json(DOMAIN.upload_ipa(**env[:app_store_connect_params].merge(params)))
+    end
   end
 end
 

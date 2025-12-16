@@ -255,6 +255,54 @@ module AppStore
     end
   end
 
+  class IpaDownloadError < StandardError
+    MSG = "Failed to download IPA from the provided URL"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:ipa_upload, :download_failed, message)
+    end
+  end
+
+  class IpaUploadError < StandardError
+    MSG = "Failed to upload IPA to App Store Connect"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:ipa_upload, :upload_failed, message)
+    end
+  end
+
+  class IpaPartUploadError < StandardError
+    MSG = "Failed to upload a part of the IPA"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:ipa_upload, :part_upload_failed, message)
+    end
+  end
+
+  class IpaUploadApiError < StandardError
+    MSG = "App Store Connect API error during IPA upload"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:ipa_upload, :api_error, message)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
@@ -275,7 +323,11 @@ module AppStore
     AppStore::VersionAlreadyAddedToSubmissionError,
     AppStore::VersionAlreadyExistsError,
     AppStore::UnexpectedAppstoreError,
-    AppStore::VersionNotEditableError
+    AppStore::VersionNotEditableError,
+    AppStore::IpaDownloadError,
+    AppStore::IpaUploadError,
+    AppStore::IpaPartUploadError,
+    AppStore::IpaUploadApiError
   ]
 
   # 409

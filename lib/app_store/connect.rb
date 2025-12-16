@@ -4,6 +4,7 @@ require "ougai"
 require "retryable"
 require_relative "../../spaceship/wrapper_token"
 require_relative "../../spaceship/wrapper_error"
+require_relative "upload"
 
 module AppStore
   class Connect
@@ -32,6 +33,8 @@ module AppStore
     def self.start_release(**params) = new(**params).start_release(**params.slice(:build_number))
 
     def self.live_release(**params) = new(**params).live_release
+
+    def self.upload_ipa(**params) = new(**params).upload_ipa(**params)
 
     def self.pause_phased_release(**params) = new(**params).pause_phased_release
 
@@ -366,6 +369,15 @@ module AppStore
         raise VersionNotFoundError.new("No release live yet.") unless live_version
         version_data(live_version)
       end
+    end
+
+    def upload_ipa(app_id:, ipa_url:, cf_bundle_short_version:, cf_bundle_version:, **)
+      Upload.new(token: api.token).call(
+        app_id: app_id,
+        ipa_url: ipa_url,
+        cf_bundle_short_version: cf_bundle_short_version,
+        cf_bundle_version: cf_bundle_version
+      )
     end
 
     private
