@@ -173,9 +173,12 @@ GEM
       rack (~> 2.0)
     hansi (0.2.1)
     highline (2.0.3)
+    http-2 (1.1.1)
     http-cookie (1.0.5)
       domain_name (~> 0.5)
     httpclient (2.8.3)
+    httpx (1.6.3)
+      http-2 (>= 1.0.0)
     jmespath (1.6.2)
     json (2.6.3)
     jwt (2.7.1)
@@ -268,6 +271,10 @@ GEM
       naturally
     spoon (0.0.6)
       ffi
+    sqlite3 (2.8.1-aarch64-linux-gnu)
+    sqlite3 (2.8.1-arm64-darwin)
+    sqlite3 (2.8.1-x86_64-darwin)
+    sqlite3 (2.8.1-x86_64-linux-gnu)
     standard (1.22.1)
       language_server-protocol (~> 3.17.0.2)
       rubocop (= 1.42.0)
@@ -313,11 +320,13 @@ DEPENDENCIES
   fastlane
   guard-rack
   hanami-api
+  httpx
   ougai
   puma
   rack-jwt
   retryable
   sentry-ruby
+  sqlite3
   standard
 
 RUBY VERSION

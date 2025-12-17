@@ -11,6 +11,7 @@ require "./initializers/config"
 require "./initializers/sentry_config"
 require "./initializers/jwt"
 require "./initializers/env"
+require "./initializers/database"
 require "./rack/app_store_connect_headers"
 require "./rack/app_store_auth_handler"
 require "./rack/internal_error_handler"
@@ -122,8 +123,18 @@ class AppleAppV1 < Hanami::API
         status(204)
       end
     end
+
+    post "upload" do
+      json(DOMAIN.upload_ipa(**env[:app_store_connect_params].merge(params)))
+    end
+
+    get "upload/:upload_id" do
+      json(DOMAIN.upload_status(**env[:app_store_connect_params].merge(params)))
+    end
   end
 end
+
+Initializers::Database.setup!
 
 class App < Hanami::API
   include Initializers::Config
