@@ -173,9 +173,12 @@ GEM
       rack (~> 2.0)
     hansi (0.2.1)
     highline (2.0.3)
+    http-2 (1.1.1)
     http-cookie (1.0.5)
       domain_name (~> 0.5)
     httpclient (2.8.3)
+    httpx (1.6.3)
+      http-2 (>= 1.0.0)
     jmespath (1.6.2)
     json (2.6.3)
     jwt (2.7.1)
@@ -317,6 +320,7 @@ DEPENDENCIES
   fastlane
   guard-rack
   hanami-api
+  httpx
   ougai
   puma
   rack-jwt

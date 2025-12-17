@@ -12,6 +12,7 @@ gem "sentry-ruby"
 gem "ougai"
 gem "retryable"
 gem "sqlite3"
+gem "httpx"
 
 group :development, :test do
   gem "standard"

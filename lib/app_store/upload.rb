@@ -1,7 +1,6 @@
-require "net/http"
+require "httpx"
 require "uri"
 require "fileutils"
-require "tempfile"
 require "ougai"
 require "retryable"
 require_relative "errors"
@@ -110,31 +109,48 @@ module AppStore
 
     private
 
+    def http_client
+      @http_client ||= HTTPX.plugin(:follow_redirects)
+        .plugin(:retries)
+        .with(
+          ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER},
+          timeout: {connect_timeout: 30, read_timeout: 60}
+        )
+    end
+
+    def part_upload_client
+      @part_upload_client ||= HTTPX.plugin(:retries)
+        .with(
+          ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER},
+          timeout: {connect_timeout: 30, read_timeout: PART_UPLOAD_TIMEOUT}
+        )
+    end
+
+    def download_client
+      @download_client ||= HTTPX.plugin(:follow_redirects)
+        .plugin(:stream)
+        .with(
+          ssl: {verify_mode: OpenSSL::SSL::VERIFY_PEER},
+          timeout: {connect_timeout: 30, read_timeout: 600}
+        )
+    end
+
     def download_ipa(url)
       log("Downloading IPA from URL", {url: url})
 
-      uri = URI.parse(url)
       temp_dir = File.join(Dir.tmpdir, "applelink_ipa_uploads")
       FileUtils.mkdir_p(temp_dir)
-
       temp_file = File.join(temp_dir, "#{SecureRandom.uuid}.ipa")
 
-      Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https") do |http|
-        request = Net::HTTP::Get.new(uri)
+      response = download_client.get(url, stream: true)
 
-        http.request(request) do |response|
-          case response
-          when Net::HTTPSuccess
-            File.open(temp_file, "wb") do |file|
-              response.read_body do |chunk|
-                file.write(chunk)
-              end
-            end
-          when Net::HTTPRedirection
-            return download_ipa(response["location"])
-          else
-            raise IpaDownloadError.new("Failed to download IPA: HTTP #{response.code}")
-          end
+      unless response.status == 200
+        raise IpaDownloadError.new("Failed to download IPA: HTTP #{response.status}")
+      end
+
+      File.open(temp_file, "wb") do |file|
+        response.each do |chunk|
+          file.write(chunk)
         end
       end
 
@@ -209,7 +225,7 @@ module AppStore
 
     def upload_part_with_retry(url:, data:, headers:, part_number:)
       Retryable.retryable(
-        on: [IpaPartUploadError, Net::OpenTimeout, Net::ReadTimeout],
+        on: [IpaPartUploadError, HTTPX::TimeoutError, HTTPX::ConnectionError],
         tries: MAX_RETRIES,
         sleep: ->(n) { n + RETRY_BASE_SLEEP_SECONDS },
         exception_cb: proc { @upload_status.increment_retry_count! }
@@ -219,25 +235,14 @@ module AppStore
     end
 
     def upload_part(url:, data:, headers:, part_number:)
-      uri = URI.parse(url)
-
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = uri.scheme == "https"
-      http.open_timeout = 30
-      http.read_timeout = PART_UPLOAD_TIMEOUT
-      http.max_version = OpenSSL::SSL::TLS1_2_VERSION if http.respond_to?(:max_version=)
-
-      request = Net::HTTP::Put.new(uri)
-      request.body = data
-
-      headers.each do |header|
-        request[header["name"]] = header["value"]
+      headers_hash = headers.each_with_object({}) do |header, h|
+        h[header["name"]] = header["value"]
       end
 
-      response = http.request(request)
+      response = part_upload_client.put(url, headers: headers_hash, body: data)
 
-      unless response.is_a?(Net::HTTPSuccess)
-        raise IpaPartUploadError.new("Upload failed for part #{part_number} (HTTP #{response.code}): #{response.body}")
+      unless response.status >= 200 && response.status < 300
+        raise IpaPartUploadError.new("Upload failed for part #{part_number} (HTTP #{response.status}): #{response.body}")
       end
 
       log("Part uploaded successfully", {part_number: part_number})
@@ -256,42 +261,31 @@ module AppStore
     end
 
     def asc_request(method, endpoint, body = nil)
-      uri = URI.parse("#{ASC_API_BASE}/#{endpoint}")
+      url = "#{ASC_API_BASE}/#{endpoint}"
+      headers = {
+        "Authorization" => "Bearer #{@token.text}",
+        "Content-Type" => "application/json"
+      }
 
-      http = Net::HTTP.new(uri.host, uri.port)
-      http.use_ssl = true
-      http.open_timeout = 30
-      http.read_timeout = 60
-
-      request = case method
+      response = case method
       when :get
-        Net::HTTP::Get.new(uri)
+        http_client.get(url, headers: headers)
       when :post
-        Net::HTTP::Post.new(uri)
+        http_client.post(url, headers: headers, json: body)
       when :patch
-        Net::HTTP::Patch.new(uri)
+        http_client.patch(url, headers: headers, json: body)
       end
 
-      request["Authorization"] = "Bearer #{@token.text}"
-      request["Content-Type"] = "application/json"
-
-      if body
-        request.body = body.to_json
-      end
-
-      response = http.request(request)
-
-      case response
-      when Net::HTTPSuccess
-        JSON.parse(response.body)
+      if response.status >= 200 && response.status < 300
+        JSON.parse(response.body.to_s)
       else
         error_body = begin
-          JSON.parse(response.body)
+          JSON.parse(response.body.to_s)
         rescue
-          response.body
+          response.body.to_s
         end
-        log("ASC API error", {endpoint: endpoint, status: response.code, body: error_body})
-        raise IpaUploadApiError.new("ASC API error (#{response.code}): #{error_body}")
+        log("ASC API error", {endpoint: endpoint, status: response.status, body: error_body})
+        raise IpaUploadApiError.new("ASC API error (#{response.status}): #{error_body}")
       end
     end
 
