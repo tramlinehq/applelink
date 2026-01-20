@@ -48,6 +48,10 @@ module Spaceship
       {
         message_matcher: /Resource reviewSubmissions with id .* cannot be found/i,
         decorated_exception: AppStore::ReviewSubmissionNotFound
+      },
+      {
+        message_matcher: /There is no resource of type/i,
+        decorated_exception: AppStore::ResourceNotFoundError
       }
     ].freeze
 

@@ -255,13 +255,26 @@ module AppStore
     end
   end
 
+  class ResourceNotFoundError < StandardError
+    MSG = "The requested resource was not found"
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:resource, :not_found, MSG)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
     AppStore::BuildNotFoundError,
     AppStore::BetaGroupNotFoundError,
     AppStore::LocalizationNotFoundError,
-    AppStore::ReviewSubmissionNotFound
+    AppStore::ReviewSubmissionNotFound,
+    AppStore::ResourceNotFoundError
   ]
 
   # 422

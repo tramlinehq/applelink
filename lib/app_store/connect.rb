@@ -186,7 +186,7 @@ module AppStore
         end
 
         # Fetch all localizations once to avoid multiple API calls
-        localizations = latest_version.get_app_store_version_localizations
+        localizations = fetch_localizations(latest_version)
         metadata.each { update_version_locale!(localizations, _1) }
 
         if is_phased_release && latest_version.app_store_version_phased_release.nil?
@@ -386,7 +386,7 @@ module AppStore
         status: inflight_version.app_store_state,
         release_date: inflight_version.created_date,
         build_number: inflight_version.build&.version,
-        localizations: build_localizations(inflight_version.get_app_store_version_localizations)
+        localizations: build_localizations(fetch_localizations(inflight_version))
       }
     end
 
@@ -400,7 +400,7 @@ module AppStore
         status: live_version.app_store_state,
         release_date: live_version.created_date,
         build_number: live_version.build&.version,
-        localizations: build_localizations(live_version.get_app_store_version_localizations)
+        localizations: build_localizations(fetch_localizations(live_version))
       }
     end
 
@@ -707,6 +707,12 @@ module AppStore
         raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
         build = update_export_compliance(build)
         build
+      end
+    end
+
+    def fetch_localizations(app_store_version)
+      execute_with_retry(ResourceNotFoundError) do
+        app_store_version.get_app_store_version_localizations
       end
     end
 
