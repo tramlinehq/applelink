@@ -44,7 +44,7 @@ module AppStore
     MAX_RETRIES = 3
     RETRY_BASE_SLEEP_SECONDS = 1
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
-    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionLocalizations appStoreVersionSubmission].join(",").freeze
+    VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionSubmission].join(",").freeze
     READY_FOR_REVIEW_STATE = "READY_FOR_REVIEW"
     INFLIGHT_RELEASE_FILTERS = {
       appStoreState: [
@@ -185,7 +185,9 @@ module AppStore
           latest_version = create_app_store_version(version, build)
         end
 
-        metadata.each { update_version_locale!(latest_version, _1) }
+        # Fetch all localizations once to avoid multiple API calls
+        localizations = latest_version.get_app_store_version_localizations
+        metadata.each { update_version_locale!(localizations, _1) }
 
         if is_phased_release && latest_version.app_store_version_phased_release.nil?
           log "Creating phased release for the app store version"
@@ -384,7 +386,7 @@ module AppStore
         status: inflight_version.app_store_state,
         release_date: inflight_version.created_date,
         build_number: inflight_version.build&.version,
-        localizations: build_localizations(inflight_version.app_store_version_localizations)
+        localizations: build_localizations(inflight_version.get_app_store_version_localizations)
       }
     end
 
@@ -398,7 +400,7 @@ module AppStore
         status: live_version.app_store_state,
         release_date: live_version.created_date,
         build_number: live_version.build&.version,
-        localizations: build_localizations(live_version.app_store_version_localizations)
+        localizations: build_localizations(live_version.get_app_store_version_localizations)
       }
     end
 
@@ -506,8 +508,8 @@ module AppStore
       end
     end
 
-    def update_version_locale!(app_store_version, metadata)
-      locale = app_store_version.app_store_version_localizations.find { |l| metadata[:locale] == l.locale }
+    def update_version_locale!(localizations, metadata)
+      locale = localizations.find { |l| metadata[:locale] == l.locale }
       return if locale.nil?
 
       locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
@@ -603,7 +605,8 @@ module AppStore
         build_created_at: version.build&.uploaded_date,
         phased_release: version.app_store_version_phased_release,
         added_at: [version.created_date, version.build&.uploaded_date].compact.max,
-        localizations: build_localizations(version.app_store_version_localizations)
+        # Fetch all localizations separately to avoid the 10-item limit with includes
+        localizations: build_localizations(version.get_app_store_version_localizations)
       }
     end
 
