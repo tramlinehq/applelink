@@ -371,6 +371,10 @@ module AppStore
 
     private
 
+    # ===========================================================================
+    # Version Management
+    # ===========================================================================
+
     def current_inflight_release
       app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
         .max_by { |v| Date.parse(v.created_date) }
@@ -379,65 +383,14 @@ module AppStore
     def inflight_release_info
       inflight_version = current_inflight_release
       return unless inflight_version
-
-      {
-        id: inflight_version.id,
-        version_string: inflight_version.version_string,
-        status: inflight_version.app_store_state,
-        release_date: inflight_version.created_date,
-        build_number: inflight_version.build&.version,
-        localizations: build_localizations(fetch_localizations(inflight_version))
-      }
+      release_info(inflight_version)
     end
 
     # no of api calls: 2
     def live_app_info
       live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
       return unless live_version
-
-      {
-        id: live_version.id,
-        version_string: live_version.version_string,
-        status: live_version.app_store_state,
-        release_date: live_version.created_date,
-        build_number: live_version.build&.version,
-        localizations: build_localizations(fetch_localizations(live_version))
-      }
-    end
-
-    def build_localizations(localizations = [])
-      localizations.map do |localization|
-        {
-          language: localization.locale,
-          whats_new: localization.whats_new,
-          promotional_text: localization.promotional_text,
-          description: localization.description,
-          support_url: localization.support_url,
-          marketing_url: localization.marketing_url,
-          keywords: localization.keywords
-        }
-      end
-    end
-
-    # no of api calls: 1-4 ; +3 with every retry attempt
-    def submit_for_beta_review(build)
-      retry_proc = proc do
-        log("Retrying submitting for beta review.")
-        waiting_for_review_build = app.get_builds(
-          filter: {"betaAppReviewSubmission.betaReviewState" => "WAITING_FOR_REVIEW,IN_REVIEW",
-                   "expired" => false,
-                   "preReleaseVersion.version" => build.pre_release_version.version}
-        ).first
-        if waiting_for_review_build
-          waiting_for_review_build.expire!
-          log("Expired build - #{waiting_for_review_build.version}.")
-        end
-      end
-
-      execute_with_retry(AppStore::ReviewAlreadyInProgressError, retry_proc:) do
-        log("Submitting beta build for review")
-        build.post_beta_app_review_submission if build.ready_for_beta_submission?
-      end
+      release_info(live_version)
     end
 
     def get_latest_app_store_version
@@ -509,24 +462,6 @@ module AppStore
       end
     end
 
-    def update_version_locale!(localizations, metadata)
-      locale = localizations.find { |l| metadata[:locale] == l.locale }
-      return if locale.nil?
-
-      locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
-        {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
-      else
-        {"whatsNew" => metadata[:whats_new]}
-      end
-
-      unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
-        locale_params["promotionalText"] = metadata[:promotional_text]
-      end
-
-      log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
-      locale.update(attributes: locale_params)
-    end
-
     # no of api calls: 1
     def update_version_details!(app_store_version, version, build)
       attempts ||= 1
@@ -592,34 +527,38 @@ module AppStore
       end
     end
 
-    def version_data(version)
-      {
-        id: version.id,
-        version_name: version.version_string,
-        app_store_state: version.app_store_state,
-        release_type: version.release_type,
-        earliest_release_date: version.earliest_release_date,
-        downloadable: version.downloadable,
-        created_date: version.created_date,
-        build_number: version.build&.version,
-        build_id: version.build&.id,
-        build_created_at: version.build&.uploaded_date,
-        phased_release: version.app_store_version_phased_release,
-        added_at: [version.created_date, version.build&.uploaded_date].compact.max
-      }
+    # ===========================================================================
+    # Build Management
+    # ===========================================================================
+
+    def get_build(build_number, includes = [])
+      execute_with_retry(BuildNotFoundError) do
+        log "Fetching build with build number #{build_number}"
+        build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
+        log("Found build with build number #{build_number}", build.to_json) if build
+        raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
+
+        build = update_export_compliance(build)
+        build
+      end
     end
 
-    def release_data(version, submission, review_submission_items)
-      localizations = {localizations: []}
-      localizations[:localizations] = build_localizations(fetch_localizations(version))
+    def build_ready?(build)
+      build&.processed? && build&.build_beta_detail
+    end
 
-      ready_review_submission = {ready_review_submission: {}}
-      ready_review_submission[:ready_review_submission] = {id: submission.id} if submission
-      ready_review_submission[:ready_review_submission][:items] = review_submission_items if review_submission_items&.any?
+    def update_export_compliance(build)
+      execute do
+        return build unless build.missing_export_compliance?
 
-      version_data(version)
-        .merge(localizations)
-        .merge(ready_review_submission)
+        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
+        updated_build = api::Build.get(build_id: build.id)
+        raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+        updated_build
+      end
+    rescue ExportComplianceAlreadyUpdatedError => e
+      Sentry.capture_exception(e)
+      build
     end
 
     def get_builds_for_group(group_id, limit = 2)
@@ -631,18 +570,36 @@ module AppStore
       )
     end
 
-    def build_data(build)
-      {
-        id: build.id,
-        build_number: build.version,
-        beta_internal_state: build.build_beta_detail&.internal_build_state,
-        beta_external_state: build.build_beta_detail&.external_build_state,
-        uploaded_date: build.uploaded_date,
-        expired: build.expired,
-        processing_state: build.processing_state,
-        version_string: build.pre_release_version&.version
-      }
+    # no of api calls: 1-4 ; +3 with every retry attempt
+    def submit_for_beta_review(build)
+      retry_proc = proc do
+        log("Retrying submitting for beta review.")
+        waiting_for_review_build = app.get_builds(
+          filter: {"betaAppReviewSubmission.betaReviewState" => "WAITING_FOR_REVIEW,IN_REVIEW",
+                   "expired" => false,
+                   "preReleaseVersion.version" => build.pre_release_version.version}
+        ).first
+        if waiting_for_review_build
+          waiting_for_review_build.expire!
+          log("Expired build - #{waiting_for_review_build.version}.")
+        end
+      end
+
+      execute_with_retry(AppStore::ReviewAlreadyInProgressError, retry_proc:) do
+        log("Submitting beta build for review")
+        build.post_beta_app_review_submission if build.ready_for_beta_submission?
+      end
     end
+
+    def group(id)
+      group = app.get_beta_groups(filter: {id:}).first
+      raise BetaGroupNotFoundError.new("Beta group with id #{id} not found") unless group
+      group
+    end
+
+    # ===========================================================================
+    # Review & Submission
+    # ===========================================================================
 
     # fetch all non-appStoreVersion submission items that are ready for review
     def get_other_ready_review_items(submission_id)
@@ -684,37 +641,9 @@ module AppStore
       api.get_review_submission_items(review_submission_id: submission_id, includes:).all_pages.map(&:body)
     end
 
-    def update_export_compliance(build)
-      execute do
-        return build unless build.missing_export_compliance?
-
-        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
-        updated_build = api::Build.get(build_id: build.id)
-        raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
-        updated_build
-      end
-    rescue ExportComplianceAlreadyUpdatedError => e
-      Sentry.capture_exception(e)
-      build
-    end
-
-    def group(id)
-      group = app.get_beta_groups(filter: {id:}).first
-      raise BetaGroupNotFoundError.new("Beta group with id #{id} not found") unless group
-      group
-    end
-
-    def get_build(build_number, includes = [])
-      execute_with_retry(BuildNotFoundError) do
-        log "Fetching build with build number #{build_number}"
-        build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
-        log("Found build with build number #{build_number}", build.to_json) if build
-        raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
-
-        build = update_export_compliance(build)
-        build
-      end
-    end
+    # ===========================================================================
+    # Localization
+    # ===========================================================================
 
     # Fetch all localizations once to avoid multiple API calls
     def fetch_localizations(app_store_version, re_raise: true)
@@ -726,9 +655,99 @@ module AppStore
       []
     end
 
-    def build_ready?(build)
-      build&.processed? && build&.build_beta_detail
+    def update_version_locale!(localizations, metadata)
+      locale = localizations.find { |l| metadata[:locale] == l.locale }
+      return if locale.nil?
+
+      locale_params = if metadata[:whats_new].nil? || metadata[:whats_new].empty?
+        {"whatsNew" => "The latest version contains bug fixes and performance improvements."}
+      else
+        {"whatsNew" => metadata[:whats_new]}
+      end
+
+      unless metadata[:promotional_text].nil? || metadata[:promotional_text].empty?
+        locale_params["promotionalText"] = metadata[:promotional_text]
+      end
+
+      log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
+      locale.update(attributes: locale_params)
     end
+
+    # ===========================================================================
+    # Data Transformers
+    # ===========================================================================
+
+    def release_data(version, submission, review_submission_items)
+      localizations = {localizations: []}
+      localizations[:localizations] = build_localizations(fetch_localizations(version))
+
+      ready_review_submission = {ready_review_submission: {}}
+      ready_review_submission[:ready_review_submission] = {id: submission.id} if submission
+      ready_review_submission[:ready_review_submission][:items] = review_submission_items if review_submission_items&.any?
+
+      version_data(version)
+        .merge(localizations)
+        .merge(ready_review_submission)
+    end
+
+    def release_info(version)
+      {
+        id: version.id,
+        version_string: version.version_string,
+        status: version.app_store_state,
+        release_date: version.created_date,
+        build_number: version.build&.version,
+        localizations: build_localizations(fetch_localizations(version))
+      }
+    end
+
+    def build_localizations(localizations = [])
+      localizations.map do |localization|
+        {
+          language: localization.locale,
+          whats_new: localization.whats_new,
+          promotional_text: localization.promotional_text,
+          description: localization.description,
+          support_url: localization.support_url,
+          marketing_url: localization.marketing_url,
+          keywords: localization.keywords
+        }
+      end
+    end
+
+    def version_data(version)
+      {
+        id: version.id,
+        version_name: version.version_string,
+        app_store_state: version.app_store_state,
+        release_type: version.release_type,
+        earliest_release_date: version.earliest_release_date,
+        downloadable: version.downloadable,
+        created_date: version.created_date,
+        build_number: version.build&.version,
+        build_id: version.build&.id,
+        build_created_at: version.build&.uploaded_date,
+        phased_release: version.app_store_version_phased_release,
+        added_at: [version.created_date, version.build&.uploaded_date].compact.max
+      }
+    end
+
+    def build_data(build)
+      {
+        id: build.id,
+        build_number: build.version,
+        beta_internal_state: build.build_beta_detail&.internal_build_state,
+        beta_external_state: build.build_beta_detail&.external_build_state,
+        uploaded_date: build.uploaded_date,
+        expired: build.expired,
+        processing_state: build.processing_state,
+        version_string: build.pre_release_version&.version
+      }
+    end
+
+    # ===========================================================================
+    # Execution Helpers
+    # ===========================================================================
 
     def execute
       yield
