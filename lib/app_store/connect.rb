@@ -185,7 +185,6 @@ module AppStore
           latest_version = create_app_store_version(version, build)
         end
 
-        # Fetch all localizations once to avoid multiple API calls
         localizations = fetch_localizations(latest_version)
         metadata.each { update_version_locale!(localizations, _1) }
 
@@ -380,6 +379,7 @@ module AppStore
     def inflight_release_info
       inflight_version = current_inflight_release
       return unless inflight_version
+
       {
         id: inflight_version.id,
         version_string: inflight_version.version_string,
@@ -394,6 +394,7 @@ module AppStore
     def live_app_info
       live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
       return unless live_version
+
       {
         id: live_version.id,
         version_string: live_version.version_string,
@@ -604,17 +605,21 @@ module AppStore
         build_id: version.build&.id,
         build_created_at: version.build&.uploaded_date,
         phased_release: version.app_store_version_phased_release,
-        added_at: [version.created_date, version.build&.uploaded_date].compact.max,
-        # Fetch all localizations separately to avoid the 10-item limit with includes
-        localizations: build_localizations(version.get_app_store_version_localizations)
+        added_at: [version.created_date, version.build&.uploaded_date].compact.max
       }
     end
 
     def release_data(version, submission, review_submission_items)
+      localizations = {localizations: []}
+      localizations[:localizations] = build_localizations(fetch_localizations(version))
+
       ready_review_submission = {ready_review_submission: {}}
       ready_review_submission[:ready_review_submission] = {id: submission.id} if submission
       ready_review_submission[:ready_review_submission][:items] = review_submission_items if review_submission_items&.any?
-      version_data(version).merge(ready_review_submission)
+
+      version_data(version)
+        .merge(localizations)
+        .merge(ready_review_submission)
     end
 
     def get_builds_for_group(group_id, limit = 2)
@@ -705,15 +710,20 @@ module AppStore
         build = app.get_builds(includes: %w[preReleaseVersion buildBetaDetail].concat(includes).join(","), filter: {version: build_number}).first
         log("Found build with build number #{build_number}", build.to_json) if build
         raise BuildNotFoundError.new("Build with number #{build_number} not found") unless build_ready?(build)
+
         build = update_export_compliance(build)
         build
       end
     end
 
-    def fetch_localizations(app_store_version)
+    # Fetch all localizations once to avoid multiple API calls
+    def fetch_localizations(app_store_version, re_raise: true)
       execute_with_retry(ResourceNotFoundError) do
         app_store_version.get_app_store_version_localizations
       end
+    rescue ResourceNotFoundError => e
+      raise e if re_raise
+      []
     end
 
     def build_ready?(build)
