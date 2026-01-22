@@ -74,7 +74,7 @@ module AppStore
     attr_reader :api, :bundle_id
 
     def app
-      @app ||= api::App.find(bundle_id)
+      @app ||= execute_with_retry { api::App.find(bundle_id) }
       raise AppNotFoundError unless @app
       @app
     end
@@ -86,7 +86,8 @@ module AppStore
 
     # no of api calls: 1 + n (n = number of beta groups)
     def beta_app_info
-      app.get_beta_groups(filter: {isInternalGroup: false}).map do |group|
+      beta_groups = execute_with_retry { app.get_beta_groups(filter: {isInternalGroup: false}) }
+      beta_groups.map do |group|
         builds = get_builds_for_group(group.id).map do |build|
           build_data(build)
             .slice(:id, :build_number, :beta_external_state, :version_string, :uploaded_date)
@@ -99,8 +100,10 @@ module AppStore
 
     # no of api calls: 2
     def groups
-      app.get_beta_groups.map do |group|
-        {name: group.name, id: group.id, internal: group.is_internal_group}
+      execute_with_retry do
+        app.get_beta_groups.map do |group|
+          {name: group.name, id: group.id, internal: group.is_internal_group}
+        end
       end
     end
 
@@ -111,17 +114,17 @@ module AppStore
 
     def update_build_notes(build_number:, notes: nil)
       return if notes.nil? || notes.empty?
-      execute do
-        build = get_build(build_number, %w[betaBuildLocalizations])
-        locale = build.get_beta_build_localizations.first
-        locale_params = {whatsNew: notes}
+      build = get_build(build_number, %w[betaBuildLocalizations])
+      locale = execute_with_retry { build.get_beta_build_localizations }.first
+      locale_params = {whatsNew: notes}
 
-        log "Updating locale for the build", {build: build.to_json, locale: locale, params: locale_params}
+      log "Updating locale for the build", {build: build.to_json, locale: locale, params: locale_params}
 
+      execute_with_retry do
         if locale
           api.patch_beta_build_localizations(localization_id: locale.id, attributes: locale_params)
         else
-          attributes[:locale] = "en-US"
+          locale_params[:locale] = "en-US"
           api.post_beta_build_localizations(build_id: build.id, attributes: locale_params)
         end
       end
@@ -129,7 +132,7 @@ module AppStore
 
     # no of api calls: 2
     def latest_build
-      execute do
+      execute_with_retry do
         params = {
           sort: "-version",
           limit: 1,
@@ -143,18 +146,16 @@ module AppStore
 
     # no of api calls: 4-7
     def send_to_group(group_id:, build_number:)
-      execute do
-        # NOTE: have to get the build separately, can not be included in the app
-        # That inclusion is not exposed by Spaceship, but it does exist in apple API, so it can be fixed later
-        # Only two includes in app are: appStoreVersions and prices
-        build = get_build(build_number)
-        # NOTE: same as above
-        group = group(group_id)
-        build = update_export_compliance(build)
+      # NOTE: have to get the build separately, can not be included in the app
+      # That inclusion is not exposed by Spaceship, but it does exist in apple API, so it can be fixed later
+      # Only two includes in app are: appStoreVersions and prices
+      build = get_build(build_number)
+      # NOTE: same as above
+      grp = group(group_id)
+      build = update_export_compliance(build)
 
-        submit_for_beta_review(build) unless group.is_internal_group
-        build.add_beta_groups(beta_groups: [group])
-      end
+      submit_for_beta_review(build) unless grp.is_internal_group
+      execute_with_retry { build.add_beta_groups(beta_groups: [grp]) }
     end
 
     # no of api calls: 1
@@ -170,73 +171,70 @@ module AppStore
 
     # no of api calls: 6-10
     def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false)
-      execute do
-        build = get_build(build_number)
-        update_export_compliance(build)
+      build = get_build(build_number)
+      update_export_compliance(build)
 
-        log "Ensure an editable app store version", {version: version, build: build.version}
-        latest_version = ensure_editable_version(is_force, build.version)
+      log "Ensure an editable app store version", {version: version, build: build.version}
+      latest_version = ensure_editable_version(is_force, build.version)
 
-        if latest_version
-          log "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
-          update_version_details!(latest_version, version, build)
-        else
-          log "There is no editable app store version, creating it", {version: version, build: build.version}
-          latest_version = create_app_store_version(version, build)
-        end
+      if latest_version
+        log "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
+        update_version_details!(latest_version, version, build)
+      else
+        log "There is no editable app store version, creating it", {version: version, build: build.version}
+        latest_version = create_app_store_version(version, build)
+      end
 
-        localizations = fetch_localizations(latest_version)
-        metadata.each { update_version_locale!(localizations, _1) }
+      localizations = fetch_localizations(latest_version)
+      metadata.each { update_version_locale!(localizations, _1) }
 
-        if is_phased_release && latest_version.app_store_version_phased_release.nil?
-          log "Creating phased release for the app store version"
+      if is_phased_release && latest_version.app_store_version_phased_release.nil?
+        log "Creating phased release for the app store version"
+        execute_with_retry do
           latest_version.create_app_store_version_phased_release(attributes: {
             phasedReleaseState: api::AppStoreVersionPhasedRelease::PhasedReleaseState::INACTIVE
           })
-        elsif !is_phased_release && latest_version.app_store_version_phased_release
-          log "Removing phased release from the app store version"
-          latest_version.app_store_version_phased_release.delete!
         end
-
-        version = app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES)
-        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
-        review_submission_items = []
-        review_submission_items = get_other_ready_review_items(submission.id) if submission
-        release_data(version, submission, review_submission_items)
+      elsif !is_phased_release && latest_version.app_store_version_phased_release
+        log "Removing phased release from the app store version"
+        execute_with_retry { latest_version.app_store_version_phased_release.delete! }
       end
+
+      version = execute_with_retry { app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES) }
+      submission = execute_with_retry { app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items") }
+      review_submission_items = []
+      review_submission_items = get_other_ready_review_items(submission.id) if submission
+      release_data(version, submission, review_submission_items)
     end
 
     # no of api calls: 8-9
     def create_review_submission(build_number:, version: nil)
-      execute do
-        build = get_build(build_number)
+      build = get_build(build_number)
 
-        edit_version = app
-          .get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
-          .find { |v| v.build&.version == build_number.to_s }
-        raise VersionNotFoundError unless edit_version
+      edit_version = execute_with_retry do
+        app.get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
+      end.find { |v| v.build&.version == build_number.to_s }
+      raise VersionNotFoundError unless edit_version
 
-        ensure_correct_build(build, edit_version)
-        if edit_version.version_string != version
-          edit_version.update(attributes: {versionString: version})
-        end
-
-        if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
-          raise ReviewAlreadyInProgressError
-        end
-
-        submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
-
-        if submission
-          existing_reviewable_app_store_version = get_ready_app_store_version_item(submission.id)
-          raise SubmissionWithItemsExistError if existing_reviewable_app_store_version&.any?
-        end
-
-        submission ||= app.create_review_submission(platform: IOS_PLATFORM)
-        submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id)
-
-        submit_review(submission, edit_version)
+      ensure_correct_build(build, edit_version)
+      if edit_version.version_string != version
+        execute_with_retry { edit_version.update(attributes: {versionString: version}) }
       end
+
+      in_progress = execute_with_retry { app.get_in_progress_review_submission(platform: IOS_PLATFORM) }
+      raise ReviewAlreadyInProgressError if in_progress
+
+      submission = execute_with_retry { app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items") }
+
+      if submission
+        existing_reviewable_app_store_version = get_ready_app_store_version_item(submission.id)
+        raise SubmissionWithItemsExistError if existing_reviewable_app_store_version&.any?
+      end
+
+      submission ||= execute_with_retry { app.create_review_submission(platform: IOS_PLATFORM) }
+      execute_with_retry { submission.add_app_store_version_to_review_items(app_store_version_id: edit_version.id) }
+
+      submit_review(submission, edit_version)
     end
 
     def submit_review(submission, edit_version)
@@ -247,24 +245,22 @@ module AppStore
     end
 
     def cancel_review_submission(build_number:, version:)
-      execute do
-        edit_version = app
-          .get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
-          .find { |v| v.build&.version == build_number.to_s && v.version_string == version }
-        raise VersionNotFoundError unless edit_version
+      edit_version = execute_with_retry do
+        app.get_app_store_versions(includes: "build", filter: INFLIGHT_RELEASE_FILTERS)
+      end.find { |v| v.build&.version == build_number.to_s && v.version_string == version }
+      raise VersionNotFoundError unless edit_version
 
-        sub = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+      sub = execute_with_retry { app.get_in_progress_review_submission(platform: IOS_PLATFORM) }
 
-        raise SubmissionNotFoundError unless sub
-        sub.cancel_submission
+      raise SubmissionNotFoundError unless sub
+      execute_with_retry { sub.cancel_submission }
 
-        version_data(app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES))
-      end
+      version_data(execute_with_retry { app.get_edit_app_store_version(includes: VERSION_DATA_INCLUDES) })
     end
 
     # no of api calls: 2 + 2
     def release(build_number: nil)
-      execute do
+      execute_with_retry do
         if build_number.nil? || build_number.empty?
           version = current_inflight_release
           raise VersionNotFoundError.new("No inflight release found") unless version
@@ -283,86 +279,77 @@ module AppStore
 
     # no of api calls: 2
     def start_release(build_number:)
-      execute do
-        filter = {
-          appStoreState: [
-            api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
-          ].join(","),
-          platform: IOS_PLATFORM
-        }
-        edit_version = app.get_app_store_versions(includes: "build", filter: filter)
-          .find { |v| v.build&.version == build_number }
+      filter = {
+        appStoreState: [
+          api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
+        ].join(","),
+        platform: IOS_PLATFORM
+      }
+      edit_version = execute_with_retry do
+        app.get_app_store_versions(includes: "build", filter: filter)
+      end.find { |v| v.build&.version == build_number }
 
-        raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless edit_version
+      raise VersionNotFoundError.new("No startable release found for the build number - #{build_number}") unless edit_version
 
-        edit_version.create_app_store_version_release_request
-      end
+      execute_with_retry { edit_version.create_app_store_version_release_request }
     end
 
     # no of api calls: 3
     def pause_phased_release
-      execute do
-        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
-        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+      live_version = execute_with_retry { app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES) }
+      raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
 
-        ensure_release_editable(live_version)
-        updated_phased_release = live_version.app_store_version_phased_release.pause
-        live_version.app_store_version_phased_release = updated_phased_release
-        version_data(live_version)
-      end
+      ensure_release_editable(live_version)
+      updated_phased_release = execute_with_retry { live_version.app_store_version_phased_release.pause }
+      live_version.app_store_version_phased_release = updated_phased_release
+      version_data(live_version)
     end
 
     # no of api calls: 3
     def resume_phased_release
-      execute do
-        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
-        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+      live_version = execute_with_retry { app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES) }
+      raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
 
-        ensure_release_editable(live_version)
-        updated_phased_release = live_version.app_store_version_phased_release.resume
-        live_version.app_store_version_phased_release = updated_phased_release
-        version_data(live_version)
-      end
+      ensure_release_editable(live_version)
+      updated_phased_release = execute_with_retry { live_version.app_store_version_phased_release.resume }
+      live_version.app_store_version_phased_release = updated_phased_release
+      version_data(live_version)
     end
 
     # no of api calls: 3
     def complete_phased_release
-      execute do
-        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
-        raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
-        updated_phased_release = live_version.app_store_version_phased_release.complete
-        live_version.app_store_version_phased_release = updated_phased_release
-        version_data(live_version)
-      end
+      live_version = execute_with_retry { app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES) }
+      raise PhasedReleaseNotFoundError unless live_version.app_store_version_phased_release
+      updated_phased_release = execute_with_retry { live_version.app_store_version_phased_release.complete }
+      live_version.app_store_version_phased_release = updated_phased_release
+      version_data(live_version)
     end
 
     # no of api calls: 3
     def halt_release
-      execute do
-        live_version = app.get_live_app_store_version
-        if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
-          raise ReleaseAlreadyHaltedError
-        end
+      live_version = execute_with_retry { app.get_live_app_store_version }
+      if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+        raise ReleaseAlreadyHaltedError
+      end
 
-        body = {
-          data: {
-            type: "appAvailabilities",
-            attributes: {availableInNewTerritories: false},
-            relationships: {
-              app: {data: {type: "apps",
-                           id: app.id}},
-              availableTerritories: {data: []}
-            }
+      body = {
+        data: {
+          type: "appAvailabilities",
+          attributes: {availableInNewTerritories: false},
+          relationships: {
+            app: {data: {type: "apps",
+                         id: app.id}},
+            availableTerritories: {data: []}
           }
         }
+      }
 
-        api.test_flight_request_client.post("appAvailabilities", body)
-      end
+      execute_with_retry { api.test_flight_request_client.post("appAvailabilities", body) }
     end
 
     # no of api calls: 2
     def live_release
-      execute do
+      execute_with_retry do
         live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
         raise VersionNotFoundError.new("No release live yet.") unless live_version
         version_data(live_version)
@@ -376,28 +363,35 @@ module AppStore
     # ===========================================================================
 
     def current_inflight_release
-      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
-        .max_by { |v| Date.parse(v.created_date) }
+      execute_with_retry do
+        app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
+      end.max_by { |v| Date.parse(v.created_date) }
     end
 
     def inflight_release_info
-      inflight_version = current_inflight_release
-      return unless inflight_version
-      release_info(inflight_version)
+      execute_with_retry do
+        inflight_version = current_inflight_release
+        return unless inflight_version
+        release_info(inflight_version)
+      end
     end
 
     # no of api calls: 2
     def live_app_info
-      live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
-      return unless live_version
-      release_info(live_version)
+      execute_with_retry do
+        live_version = app.get_live_app_store_version(includes: VERSION_DATA_INCLUDES)
+        return unless live_version
+        release_info(live_version)
+      end
     end
 
     def get_latest_app_store_version
       filter = {
         platform: IOS_PLATFORM
       }
-      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:).max_by { |v| Time.parse(v.created_date) }
+      execute_with_retry do
+        app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter:)
+      end.max_by { |v| Time.parse(v.created_date) }
     end
 
     # no of api calls: 1-3
@@ -417,9 +411,9 @@ module AppStore
         log "Found rejected app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
 
-        submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+        submission = execute_with_retry { app.get_in_progress_review_submission(platform: IOS_PLATFORM) }
         log "Deleting rejected app store version submission", submission.to_json
-        submission&.cancel_submission
+        execute_with_retry { submission&.cancel_submission }
 
       when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
         api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
@@ -431,7 +425,7 @@ module AppStore
         # NOTE: Apple has deprecated this API, but even the appstore connect dashboard uses the deprecated API to do this action
         # https://developer.apple.com/documentation/appstoreconnectapi/delete_an_app_store_version_submission
         log "Cancelling the release for releasable app store version", latest_version.to_json
-        latest_version.app_store_version_submission.delete!
+        execute_with_retry { latest_version.app_store_version_submission.delete! }
 
       when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
         api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED
@@ -452,7 +446,7 @@ module AppStore
       body = {data: data}
 
       log "Creating app store version with ", {body: body}
-      api.tunes_request_client.post("appStoreVersions", body)
+      execute_with_retry { api.tunes_request_client.post("appStoreVersions", body) }
 
       execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 15, max_retries: 10) do
         log("Fetching the created app store version")
@@ -465,7 +459,7 @@ module AppStore
     # no of api calls: 1
     def update_version_details!(app_store_version, version, build)
       attempts ||= 1
-      execute do
+      execute_with_retry do
         body = {
           data: {
             id: app_store_version.id
@@ -548,26 +542,26 @@ module AppStore
     end
 
     def update_export_compliance(build)
-      execute do
-        return build unless build.missing_export_compliance?
+      return build unless build.missing_export_compliance?
 
-        api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false})
-        updated_build = api::Build.get(build_id: build.id)
-        raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
-        updated_build
-      end
+      execute_with_retry { api.patch_builds(build_id: build.id, attributes: {usesNonExemptEncryption: false}) }
+      updated_build = execute_with_retry { api::Build.get(build_id: build.id) }
+      raise ExportComplianceNotFoundError if updated_build.missing_export_compliance?
+      updated_build
     rescue ExportComplianceAlreadyUpdatedError => e
       Sentry.capture_exception(e)
       build
     end
 
     def get_builds_for_group(group_id, limit = 2)
-      api.get_builds(
-        filter: {app: app.id, betaGroups: group_id, expired: "false"},
-        sort: "-uploadedDate",
-        includes: "buildBetaDetail,preReleaseVersion",
-        limit: limit
-      )
+      execute_with_retry do
+        api.get_builds(
+          filter: {app: app.id, betaGroups: group_id, expired: "false"},
+          sort: "-uploadedDate",
+          includes: "buildBetaDetail,preReleaseVersion",
+          limit: limit
+        )
+      end
     end
 
     # no of api calls: 1-4 ; +3 with every retry attempt
@@ -592,7 +586,7 @@ module AppStore
     end
 
     def group(id)
-      group = app.get_beta_groups(filter: {id:}).first
+      group = execute_with_retry { app.get_beta_groups(filter: {id:}) }.first
       raise BetaGroupNotFoundError.new("Beta group with id #{id} not found") unless group
       group
     end
@@ -638,7 +632,9 @@ module AppStore
     end
 
     def get_review_submission_items(submission_id, includes)
-      api.get_review_submission_items(review_submission_id: submission_id, includes:).all_pages.map(&:body)
+      execute_with_retry do
+        api.get_review_submission_items(review_submission_id: submission_id, includes:).all_pages.map(&:body)
+      end
     end
 
     # ===========================================================================
@@ -647,7 +643,7 @@ module AppStore
 
     # Fetch all localizations once to avoid multiple API calls
     def fetch_localizations(app_store_version, re_raise: true)
-      execute_with_retry(ResourceNotFoundError) do
+      execute_with_retry do
         app_store_version.get_app_store_version_localizations
       end
     rescue ResourceNotFoundError => e
@@ -670,7 +666,7 @@ module AppStore
       end
 
       log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
-      locale.update(attributes: locale_params)
+      execute_with_retry { locale.update(attributes: locale_params) }
     end
 
     # ===========================================================================
@@ -755,8 +751,9 @@ module AppStore
       raise Spaceship::WrapperError.handle(e)
     end
 
-    def execute_with_retry(exception_types, retry_proc: proc {}, sleep_seconds: RETRY_BASE_SLEEP_SECONDS, max_retries: MAX_RETRIES)
+    def execute_with_retry(exception_types = [], retry_proc: proc {}, sleep_seconds: RETRY_BASE_SLEEP_SECONDS, max_retries: MAX_RETRIES)
       on = exception_types.is_a?(Array) ? exception_types : [exception_types]
+      on = (on + [ResourceNotFoundError]).uniq
       Retryable.retryable(on:, tries: max_retries, sleep: ->(n) { n + sleep_seconds }, exception_cb: retry_proc) do
         execute { yield }
       end
