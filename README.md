@@ -22,7 +22,7 @@
 
 Applelink is a small, self-contained, rack-based service using [Hanami::API](https://github.com/hanami/api), that wraps over [Spaceship](https://spaceship.airforce) and exposes some nice common recipes as RESTful endpoints in an entirely stateless fashion.
 
-These are based on the needs of the framework that [Tramline](https://tramline.app) implements over App Store. The API pulls its weight so Tramline has to do as little as possible. Currently, it exposes [13 API endpoints](#api).
+These are based on the needs of the framework that [Tramline](https://tramline.app) implements over App Store. The API pulls its weight so Tramline has to do as little as possible. Currently, it exposes [17 API endpoints](#api).
 
 In Applelink, a complex recipe, such as [release/prepare](#prepare-a-release-for-the-app), will perform the following tasks all bunched up:
 - Ensure that there is an App Store version that we can use for the release, or create a new one
@@ -123,7 +123,8 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > "id": "1658845856",
 > "name": "Ueno",
 > "bundle_id": "com.tramline.ueno",
-> "sku": "com.tramline.ueno"
+> "sku": "com.tramline.ueno",
+> "primary_locale": "en-US"
 > }
 > ```
 
@@ -387,8 +388,13 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
 > | bundle-id | required  | string   | app's unique identifier  |
-> | build-number | required  | integer   | build number  |
 > | group-id | required  | string   | beta group id (uuid)  |
+
+##### JSON Parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | build_number | required  | integer   | build number  |
 
 ##### Example cURL
 
@@ -399,6 +405,7 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > -H "X-AppStoreConnect-Issuer-Id: iss-id" \
 > -H "X-AppStoreConnect-Token: token" \
 > -H "Content-Type: application/json" \
+> -d '{"build_number": 9018}' \
 > http://localhost:4000/apple/connect/v1/apps/com.tramline.app/groups/3bc1ca3e-1d4f-4478-8f38-2dcae4dcbb69/add_build
 > ```
 
@@ -419,10 +426,11 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | build-number | required  | integer   | build number  |
+> | build_number | required  | integer   | build number  |
 > | version | required  | string   | version name  |
 > | is_phased_release | optional  | boolean   | flag to enable or disable phased release, defaults to false  |
 > | release_type | optional  | string   | release type, either "MANUAL" or "AFTER_APPROVAL", defaults to "MANUAL"  |
+> | is_force | optional  | boolean   | force prepare even if a release is already in progress, defaults to false  |
 > | metadata | required  | hash   | { "promotional_text": "this is the app store version promo text", "whats_new": "release notes"}  |
 
 ##### Example cURL
@@ -455,7 +463,8 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 
 > | name      |  type     | data type               | description                                                           |
 > |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
-> | build-number | required  | integer   | build number  |
+> | build_number | required  | integer   | build number  |
+> | version | optional  | string   | version name to update before submission  |
 
 ##### Example cURL
 
@@ -466,8 +475,41 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > -H "X-AppStoreConnect-Issuer-Id: iss-id" \
 > -H "X-AppStoreConnect-Token: token" \
 > -H "Content-Type: application/json" \
-> -d '{"build_number": 9018}' \
+> -d '{"build_number": 9018, "version": "1.6.2"}' \
 > http://localhost:4000/apple/connect/v1/apps/com.tramline.app/release/submit
+> ```
+
+</details>
+
+#### Cancel a review submission
+
+<details>
+ <summary><code>PATCH</code> <code><b>/apple/connect/v1/apps/:bundle_id/release/cancel_submission</b></code></summary>
+
+##### Path parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | bundle-id | required  | string   | app's unique identifier  |
+
+##### JSON Parameters
+
+> | name      |  type     | data type               | description                                                           |
+> |-----------|-----------|-------------------------|-----------------------------------------------------------------------|
+> | build_number | required  | integer   | build number  |
+> | version | required  | string   | version name  |
+
+##### Example cURL
+
+> ```bash
+> curl -X PATCH \
+> -H "Authorization: Bearer token" \
+> -H "X-AppStoreConnect-Key-Id: key-id" \
+> -H "X-AppStoreConnect-Issuer-Id: iss-id" \
+> -H "X-AppStoreConnect-Token: token" \
+> -H "Content-Type: application/json" \
+> -d '{"build_number": 9018, "version": "1.6.2"}' \
+> http://localhost:4000/apple/connect/v1/apps/com.tramline.app/release/cancel_submission
 > ```
 
 </details>
