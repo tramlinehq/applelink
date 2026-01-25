@@ -267,6 +267,16 @@ module AppStore
     end
   end
 
+  class InvalidReleaseTypeError < StandardError
+    def initialize(msg = "Invalid release_type provided")
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :invalid_release_type, message)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
@@ -288,7 +298,8 @@ module AppStore
     AppStore::VersionAlreadyAddedToSubmissionError,
     AppStore::VersionAlreadyExistsError,
     AppStore::UnexpectedAppstoreError,
-    AppStore::VersionNotEditableError
+    AppStore::VersionNotEditableError,
+    AppStore::InvalidReleaseTypeError
   ]
 
   # 409

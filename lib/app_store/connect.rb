@@ -176,8 +176,8 @@ module AppStore
     def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false, release_type: RELEASE_TYPES[:manual])
       execute do
         # Validate release_type
-        unless RELEASE_TYPES.values.include?(release_type)
-          raise ArgumentError, "Invalid release_type: #{release_type}. Must be either '#{RELEASE_TYPES[:manual]}' or '#{RELEASE_TYPES[:auto]}'"
+        unless RELEASE_TYPES.value?(release_type)
+          raise AppStore::InvalidReleaseTypeError, "Invalid release_type: #{release_type}. Must be either '#{RELEASE_TYPES[:manual]}' or '#{RELEASE_TYPES[:auto]}'"
         end
 
         build = get_build(build_number)
