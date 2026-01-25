@@ -422,6 +422,7 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > | build-number | required  | integer   | build number  |
 > | version | required  | string   | version name  |
 > | is_phased_release | optional  | boolean   | flag to enable or disable phased release, defaults to false  |
+> | release_type | optional  | string   | release type, either "MANUAL" or "AFTER_APPROVAL", defaults to "MANUAL"  |
 > | metadata | required  | hash   | { "promotional_text": "this is the app store version promo text", "whats_new": "release notes"}  |
 
 ##### Example cURL
