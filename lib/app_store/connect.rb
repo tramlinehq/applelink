@@ -21,7 +21,7 @@ module AppStore
 
     def self.current_app_info(**params) = new(**params).current_app_info
 
-    def self.prepare_release(**params) = new(**params).prepare_release(**params.slice(:build_number, :is_phased_release, :version, :is_force, :metadata))
+    def self.prepare_release(**params) = new(**params).prepare_release(**params.slice(:build_number, :is_phased_release, :version, :is_force, :metadata, :release_type))
 
     def self.create_review_submission(**params) = new(**params).create_review_submission(**params.slice(:build_number, :version))
 
@@ -46,6 +46,10 @@ module AppStore
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
     VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionSubmission].join(",").freeze
     READY_FOR_REVIEW_STATE = "READY_FOR_REVIEW"
+    RELEASE_TYPES = {
+      manual: "MANUAL",
+      auto: "AFTER_APPROVAL"
+    }.freeze
     INFLIGHT_RELEASE_FILTERS = {
       appStoreState: [
         Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
@@ -169,8 +173,13 @@ module AppStore
     end
 
     # no of api calls: 6-10
-    def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false)
+    def prepare_release(build_number:, version:, is_phased_release:, metadata:, is_force: false, release_type: RELEASE_TYPES[:manual])
       execute do
+        # Validate release_type
+        unless RELEASE_TYPES.value?(release_type)
+          raise AppStore::InvalidReleaseTypeError, "Invalid release_type: #{release_type}. Must be either '#{RELEASE_TYPES[:manual]}' or '#{RELEASE_TYPES[:auto]}'"
+        end
+
         build = get_build(build_number)
         update_export_compliance(build)
 
@@ -179,10 +188,10 @@ module AppStore
 
         if latest_version
           log "There is an editable app store version, updating the details", {app_store_version: latest_version.to_json, version: version, build: build.version}
-          update_version_details!(latest_version, version, build)
+          update_version_details!(latest_version, version, build, release_type)
         else
           log "There is no editable app store version, creating it", {version: version, build: build.version}
-          latest_version = create_app_store_version(version, build)
+          latest_version = create_app_store_version(version, build, release_type)
         end
 
         localizations = fetch_localizations(latest_version)
@@ -445,8 +454,8 @@ module AppStore
     end
 
     # no of api calls: 2
-    def create_app_store_version(version, build)
-      data = build_app_store_version_attributes(version, build)
+    def create_app_store_version(version, build, release_type = RELEASE_TYPES[:manual])
+      data = build_app_store_version_attributes(version, build, nil, release_type)
       data[:relationships][:app] = {data: {type: "apps", id: app.id}}
       data[:attributes][:platform] = IOS_PLATFORM
       body = {data: data}
@@ -463,13 +472,13 @@ module AppStore
     end
 
     # no of api calls: 1
-    def update_version_details!(app_store_version, version, build)
+    def update_version_details!(app_store_version, version, build, release_type = RELEASE_TYPES[:manual])
       attempts ||= 1
       execute do
         body = {
           data: {
             id: app_store_version.id
-          }.merge(build_app_store_version_attributes(version, build, app_store_version))
+          }.merge(build_app_store_version_attributes(version, build, app_store_version, release_type))
         }
 
         log "Updating app store version details with ", {body: body, attempts: attempts}
@@ -488,9 +497,9 @@ module AppStore
       end
     end
 
-    def build_app_store_version_attributes(version, build, app_store_version = nil)
-      # Updating version to be released manually by tramline, not automatically after approval
-      attributes = {releaseType: "MANUAL"}
+    def build_app_store_version_attributes(version, build, app_store_version = nil, release_type = RELEASE_TYPES[:manual])
+      # Set the release type (MANUAL or AFTER_APPROVAL)
+      attributes = {releaseType: release_type}
       relationships = nil
 
       if version != app_store_version&.version_string
