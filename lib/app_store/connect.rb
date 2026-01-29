@@ -50,20 +50,28 @@ module AppStore
       manual: "MANUAL",
       auto: "AFTER_APPROVAL"
     }.freeze
+    INFLIGHT_RELEASE_STATES = [
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
+      READY_FOR_REVIEW_STATE
+    ].freeze
+    LIVE_RELEASE_STATES = [
+      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE
+    ].freeze
     INFLIGHT_RELEASE_FILTERS = {
-      appStoreState: [
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-        Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
-        READY_FOR_REVIEW_STATE
-      ].join(","),
+      appStoreState: INFLIGHT_RELEASE_STATES.join(","),
+      platform: IOS_PLATFORM
+    }
+    ANY_RELEASE_FILTERS = {
+      appStoreState: (INFLIGHT_RELEASE_STATES + LIVE_RELEASE_STATES).join(","),
       platform: IOS_PLATFORM
     }
 
@@ -275,10 +283,10 @@ module AppStore
     def release(build_number: nil)
       execute do
         if build_number.nil? || build_number.empty?
-          version = current_inflight_release
-          raise VersionNotFoundError.new("No inflight release found") unless version
+          version = find_any_release
+          raise VersionNotFoundError.new("No release found") unless version
         else
-          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
+          version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: ANY_RELEASE_FILTERS)
             .find { |v| v.build&.version == build_number }
           raise VersionNotFoundError.new("No release found for the build number - #{build_number}") unless version
         end
@@ -386,6 +394,11 @@ module AppStore
 
     def current_inflight_release
       app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
+        .max_by { |v| Date.parse(v.created_date) }
+    end
+
+    def find_any_release
+      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: ANY_RELEASE_FILTERS)
         .max_by { |v| Date.parse(v.created_date) }
     end
 
