@@ -283,8 +283,8 @@ module AppStore
     def release(build_number: nil)
       execute do
         if build_number.nil? || build_number.empty?
-          version = find_any_release
-          raise VersionNotFoundError.new("No release found") unless version
+          version = current_inflight_release
+          raise VersionNotFoundError.new("No inflight release found") unless version
         else
           version = app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: ANY_RELEASE_FILTERS)
             .find { |v| v.build&.version == build_number }
@@ -394,11 +394,6 @@ module AppStore
 
     def current_inflight_release
       app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: INFLIGHT_RELEASE_FILTERS)
-        .max_by { |v| Date.parse(v.created_date) }
-    end
-
-    def find_any_release
-      app.get_app_store_versions(includes: VERSION_DATA_INCLUDES, filter: ANY_RELEASE_FILTERS)
         .max_by { |v| Date.parse(v.created_date) }
     end
 
