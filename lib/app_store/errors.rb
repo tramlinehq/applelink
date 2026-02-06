@@ -277,6 +277,18 @@ module AppStore
     end
   end
 
+  class AgeRatingMissingError < StandardError
+    MSG = "Apple requires updated age rating declarations (e.g. messagingAndChat, gunsOrOtherWeapons, userGeneratedContent, advertising, lootBox, parentalControls, etc.) for your app."
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:release, :age_rating_missing, MSG)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
@@ -299,7 +311,8 @@ module AppStore
     AppStore::VersionAlreadyExistsError,
     AppStore::UnexpectedAppstoreError,
     AppStore::VersionNotEditableError,
-    AppStore::InvalidReleaseTypeError
+    AppStore::InvalidReleaseTypeError,
+    AppStore::AgeRatingMissingError
   ]
 
   # 409

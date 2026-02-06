@@ -52,6 +52,10 @@ module Spaceship
       {
         message_matcher: /There is no resource of type/i,
         decorated_exception: AppStore::ResourceNotFoundError
+      },
+      {
+        message_matcher: /You must provide a value for the attribute '(messagingAndChat|gunsOrOtherWeapons|userGeneratedContent|healthOrWellnessTopics|advertising|lootBox|parentalControls|ageAssurance)'/i,
+        decorated_exception: AppStore::AgeRatingMissingError
       }
     ].freeze
 
