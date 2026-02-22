@@ -431,7 +431,7 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > | is_phased_release | optional  | boolean   | flag to enable or disable phased release, defaults to false  |
 > | release_type | optional  | string   | release type, either "MANUAL" or "AFTER_APPROVAL", defaults to "MANUAL"  |
 > | is_force | optional  | boolean   | force prepare even if a release is already in progress, defaults to false  |
-> | metadata | required  | hash   | { "promotional_text": "this is the app store version promo text", "whats_new": "release notes"}  |
+> | metadata | required  | array  | list of localization hashes. Each item supports: `locale` (required), `whats_new` (optional; defaults to a generic message if blank), and optionally `promotional_text`, `description` and `keywords`  |
 
 ##### Example cURL
 
@@ -442,7 +442,7 @@ One can also use [requests](test/requests) in [restclient-mode](https://github.c
 > -H "X-AppStoreConnect-Issuer-Id: iss-id" \
 > -H "X-AppStoreConnect-Token: token" \
 > -H "Content-Type: application/json" \
-> -d '{"build_number": 9018, "version": "1.6.2", "is_phased_release": true, "metadata": {"promotional_text": "app store version promo text", "whats_new": "release notes"} }' \
+> -d '{"build_number": 9018, "version": "1.6.2", "is_phased_release": true, "metadata": [{"locale": "en-US", "promotional_text": "app store version promo text", "whats_new": "release notes", "description": "full description", "keywords": "tramline, releases"}] }' \
 > http://localhost:4000/apple/connect/v1/apps/com.tramline.app/release/prepare
 > ```
 
