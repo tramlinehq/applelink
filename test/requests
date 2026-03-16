@@ -74,8 +74,11 @@ POST http://127.0.0.1::port/apple/connect/v1/apps/:bundle-id/release/prepare
 "build_number": :build-number,
 "version": "1.6.2",
 "is_phased_release": true,
-"metadata": { "promotional_text": "this is the app store version promo text",
-              "whats_new": "something new"}
+"metadata": [{ "promotional_text": "this is the app store version promo text",
+               "whats_new": "something new",
+               "locale": "en-US",
+               "description": "this is the app store version description",
+               "keywords": "keyword1, keyword2, keyword3" }]
 }
 #
 
