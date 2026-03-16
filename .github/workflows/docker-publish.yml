@@ -1,4 +1,4 @@
-name: Build and publish Docker image
+name: Build and publish Docker images
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   docker:
@@ -16,6 +15,13 @@ jobs:
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          - image: applelink
+            dockerfile: ./Dockerfile
+          - image: applelink-dev
+            dockerfile: ./dev.Dockerfile
     steps:
       - name: Checkout code
         uses: actions/checkout@v6.0.2
@@ -34,21 +40,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Prepare Docker tags
-        id: tags
-        run: |
-          branch_tag=$(printf '%s' "${GITHUB_REF_NAME}" | tr '/[:upper:]' '-[:lower:]')
-          echo "branch_tag=${branch_tag}" >> "${GITHUB_OUTPUT}"
-
       - name: Build and publish Docker image
         uses: docker/build-push-action@v7.0.0
         with:
           context: .
-          file: ./dev.Dockerfile
+          file: ${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
-          # on PRs: build only, do not push
-          # on default branch: build and push
           push: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ steps.tags.outputs.branch_tag }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.REGISTRY }}/tramlinehq/${{ matrix.image }}:latest
