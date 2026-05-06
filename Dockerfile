@@ -31,4 +31,6 @@ COPY --from=build /applelink /applelink
 
 ENV LD_PRELOAD=libjemalloc.so.2
 
-EXPOSE 9292
+EXPOSE 4000
+
+CMD ["bundle", "exec", "rackup", "-s", "puma", "config.ru", "-p", "4000", "-o", "0.0.0.0"]
