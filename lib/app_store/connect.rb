@@ -238,8 +238,15 @@ module AppStore
           edit_version.update(attributes: {versionString: version})
         end
 
-        if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
-          raise ReviewAlreadyInProgressError
+        # Apple lets an app-version submission coexist with an items-only submission (In-App
+        # Events, custom product pages, experiments). So only a review that actually contains
+        # an app version blocks submitting this version - a non-version review in progress
+        # (e.g. an In-App Event) must not. Inspect the in-progress submission's items rather
+        # than blocking on the mere existence of any in-progress review.
+        in_progress_submission = app.get_in_progress_review_submission(platform: IOS_PLATFORM)
+        if in_progress_submission
+          raise ReviewAlreadyInProgressError if review_submission_has_app_store_version_item?(in_progress_submission.id)
+          log "In-progress review submission has no app version item; proceeding with a separate version submission", {submission_id: in_progress_submission.id}
         end
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
@@ -652,6 +659,15 @@ module AppStore
     def get_ready_app_store_version_item(submission_id)
       responses = get_review_submission_items(submission_id, "appStoreVersion")
       responses.dig(0, "relationships", "appStoreVersion", "data")
+    end
+
+    # whether a review submission contains an appStoreVersion item (an actual app version),
+    # as opposed to only non-version items such as In-App Events, custom product pages, or
+    # experiments. Mirrors the per-item iteration used by get_other_ready_review_items.
+    def review_submission_has_app_store_version_item?(submission_id)
+      get_review_submission_items(submission_id, "appStoreVersion").any? do |response|
+        (response.dig("data") || []).any? { |item| item.dig("relationships", "appStoreVersion", "data") }
+      end
     end
 
     def get_review_submission_items(submission_id, includes)
