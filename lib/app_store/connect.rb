@@ -694,6 +694,14 @@ module AppStore
         locale_params["keywords"] = metadata[:keywords]
       end
 
+      unless metadata[:support_url].nil? || metadata[:support_url].empty?
+        locale_params["supportUrl"] = metadata[:support_url]
+      end
+
+      unless metadata[:marketing_url].nil? || metadata[:marketing_url].empty?
+        locale_params["marketingUrl"] = metadata[:marketing_url]
+      end
+
       log "Updating locale for the app store version", {locale: locale.to_json, params: locale_params}
       locale.update(attributes: locale_params)
     end
