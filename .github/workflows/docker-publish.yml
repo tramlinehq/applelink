@@ -30,9 +30,10 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4.0.0
         with:
-          # Pin binfmt/QEMU: the default `latest` ships a QEMU that segfaults
-          # (exit 139) on arm64 libc-bin post-install under emulation.
-          image: tonistiigi/binfmt:qemu-v8.1.5
+          # Pin binfmt/QEMU: newer QEMU (latest, v8.1.5) segfaults (exit 139)
+          # on arm64 libc-bin/ldconfig post-install under emulation. v7.0.0 is
+          # the known-good version for the Debian bullseye glibc trigger.
+          image: tonistiigi/binfmt:qemu-v7.0.0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4.0.0
