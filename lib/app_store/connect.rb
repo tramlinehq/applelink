@@ -74,6 +74,11 @@ module AppStore
       appStoreState: (INFLIGHT_RELEASE_STATES + LIVE_RELEASE_STATES).join(","),
       platform: IOS_PLATFORM
     }
+    IN_PROGRESS_REVIEW_STATES = [
+      Spaceship::ConnectAPI::ReviewSubmission::ReviewSubmissionState::WAITING_FOR_REVIEW,
+      Spaceship::ConnectAPI::ReviewSubmission::ReviewSubmissionState::IN_REVIEW,
+      Spaceship::ConnectAPI::ReviewSubmission::ReviewSubmissionState::UNRESOLVED_ISSUES
+    ].join(",").freeze
 
     def initialize(**params)
       token = Spaceship::WrapperToken.new(key_id: params[:key_id], issuer_id: params[:issuer_id], text: params[:token])
@@ -238,8 +243,15 @@ module AppStore
           edit_version.update(attributes: {versionString: version})
         end
 
-        if app.get_in_progress_review_submission(platform: IOS_PLATFORM)
-          raise ReviewAlreadyInProgressError
+        # Apple lets an app-version submission coexist with an items-only submission (In-App
+        # Events, custom product pages, experiments). So only an in-progress review that
+        # actually contains an app version blocks submitting this version - a non-version
+        # review in progress (e.g. an In-App Event) must not. Up to two in-progress
+        # submissions can coexist, so every one of them must be version-free to proceed.
+        in_progress = in_progress_review_submissions
+        raise ReviewAlreadyInProgressError if in_progress.any? { |sub| sub.dig("relationships", "appStoreVersionForReview", "data") }
+        if in_progress.any?
+          log "In-progress review submission has no app version; proceeding with a separate version submission", {submission_ids: in_progress.map { |sub| sub["id"] }}
         end
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
@@ -652,6 +664,20 @@ module AppStore
     def get_ready_app_store_version_item(submission_id)
       responses = get_review_submission_items(submission_id, "appStoreVersion")
       responses.dig(0, "relationships", "appStoreVersion", "data")
+    end
+
+    # fetch all in-progress review submissions as raw hashes, with appStoreVersionForReview
+    # included so its relationship linkage ("data") distinguishes a submission that carries
+    # an app version from an items-only one (In-App Events, custom product pages,
+    # experiments). Raw bodies instead of Spaceship models because Spaceship drops
+    # relationships it can't inflate.
+    # no of api calls: 1
+    def in_progress_review_submissions
+      api.get_review_submissions(
+        app_id: app.id,
+        filter: {state: IN_PROGRESS_REVIEW_STATES, platform: IOS_PLATFORM},
+        includes: "appStoreVersionForReview"
+      ).all_pages.flat_map { |response| response.body["data"] || [] }
     end
 
     def get_review_submission_items(submission_id, includes)
