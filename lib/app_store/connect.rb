@@ -50,28 +50,34 @@ module AppStore
       manual: "MANUAL",
       auto: "AFTER_APPROVAL"
     }.freeze
+    # appStoreState was deprecated in App Store Connect API spec 3.3 in favour of
+    # appVersionState. The two enums mostly overlap; the differences we rely on are
+    # PROCESSING_FOR_APP_STORE -> PROCESSING_FOR_DISTRIBUTION and
+    # READY_FOR_SALE -> READY_FOR_DISTRIBUTION. The live/removed-from-sale states
+    # (e.g. DEVELOPER_REMOVED_FROM_SALE) no longer exist as version states; removal
+    # from sale is now an app-availability concern (see #release_removed_from_sale?).
     INFLIGHT_RELEASE_STATES = [
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PROCESSING_FOR_APP_STORE,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::REJECTED,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::METADATA_REJECTED,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::INVALID_BINARY,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::IN_REVIEW,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::PREPARE_FOR_SUBMISSION,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::PROCESSING_FOR_DISTRIBUTION,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::DEVELOPER_REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::METADATA_REJECTED,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::WAITING_FOR_REVIEW,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::INVALID_BINARY,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::IN_REVIEW,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::PENDING_DEVELOPER_RELEASE,
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::PENDING_APPLE_RELEASE,
       READY_FOR_REVIEW_STATE
     ].freeze
     LIVE_RELEASE_STATES = [
-      Spaceship::ConnectAPI::AppStoreVersion::AppStoreState::READY_FOR_SALE
+      Spaceship::ConnectAPI::AppStoreVersion::AppVersionState::READY_FOR_DISTRIBUTION
     ].freeze
     INFLIGHT_RELEASE_FILTERS = {
-      appStoreState: INFLIGHT_RELEASE_STATES.join(","),
+      appVersionState: INFLIGHT_RELEASE_STATES.join(","),
       platform: IOS_PLATFORM
     }
     ANY_RELEASE_FILTERS = {
-      appStoreState: (INFLIGHT_RELEASE_STATES + LIVE_RELEASE_STATES).join(","),
+      appVersionState: (INFLIGHT_RELEASE_STATES + LIVE_RELEASE_STATES).join(","),
       platform: IOS_PLATFORM
     }
     IN_PROGRESS_REVIEW_STATES = [
@@ -314,8 +320,8 @@ module AppStore
     def start_release(build_number:)
       execute do
         filter = {
-          appStoreState: [
-            api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE
+          appVersionState: [
+            api::AppStoreVersion::AppVersionState::PENDING_DEVELOPER_RELEASE
           ].join(","),
           platform: IOS_PLATFORM
         }
@@ -368,10 +374,7 @@ module AppStore
     # no of api calls: 3
     def halt_release
       execute do
-        live_version = app.get_live_app_store_version
-        if live_version.app_store_state == api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
-          raise ReleaseAlreadyHaltedError
-        end
+        raise ReleaseAlreadyHaltedError if release_removed_from_sale?
 
         body = {
           data: {
@@ -409,6 +412,17 @@ module AppStore
         .max_by { |v| Date.parse(v.created_date) }
     end
 
+    # appVersionState no longer carries a removed-from-sale value (previously the
+    # deprecated appStoreState's DEVELOPER_REMOVED_FROM_SALE). Removal from sale is
+    # now expressed through app availability, so a halted release is one where the
+    # app is not opted into new territories and no territory is currently available.
+    def release_removed_from_sale?
+      availability = app.get_app_availabilities
+      return false unless availability
+      territories = availability.territory_availabilities || []
+      !availability.available_in_new_territories && territories.none?(&:available)
+    end
+
     def inflight_release_info
       inflight_version = current_inflight_release
       return unless inflight_version
@@ -435,14 +449,15 @@ module AppStore
 
       log "Latest app store version", latest_version.to_json
 
-      case latest_version.app_store_state
-      when api::AppStoreVersion::AppStoreState::READY_FOR_SALE,
-        api::AppStoreVersion::AppStoreState::DEVELOPER_REMOVED_FROM_SALE
+      case latest_version.app_version_state
+      when api::AppStoreVersion::AppVersionState::READY_FOR_DISTRIBUTION
 
+        # A live version (including one whose app has since been removed from sale)
+        # reports READY_FOR_DISTRIBUTION under appVersionState.
         log "Found a live app store version", latest_version.to_json
         return
 
-      when api::AppStoreVersion::AppStoreState::REJECTED
+      when api::AppStoreVersion::AppVersionState::REJECTED
         log "Found rejected app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
 
@@ -450,10 +465,10 @@ module AppStore
         log "Deleting rejected app store version submission", submission.to_json
         submission&.cancel_submission
 
-      when api::AppStoreVersion::AppStoreState::PENDING_DEVELOPER_RELEASE,
-        api::AppStoreVersion::AppStoreState::PENDING_APPLE_RELEASE,
-        api::AppStoreVersion::AppStoreState::WAITING_FOR_REVIEW,
-        api::AppStoreVersion::AppStoreState::IN_REVIEW
+      when api::AppStoreVersion::AppVersionState::PENDING_DEVELOPER_RELEASE,
+        api::AppStoreVersion::AppVersionState::PENDING_APPLE_RELEASE,
+        api::AppStoreVersion::AppVersionState::WAITING_FOR_REVIEW,
+        api::AppStoreVersion::AppVersionState::IN_REVIEW
 
         log "Found releasable app store version", latest_version.to_json
         raise VersionAlreadyAddedToSubmissionError unless is_force
@@ -462,8 +477,8 @@ module AppStore
         log "Cancelling the release for releasable app store version", latest_version.to_json
         latest_version.app_store_version_submission.delete!
 
-      when api::AppStoreVersion::AppStoreState::PREPARE_FOR_SUBMISSION,
-        api::AppStoreVersion::AppStoreState::DEVELOPER_REJECTED
+      when api::AppStoreVersion::AppVersionState::PREPARE_FOR_SUBMISSION,
+        api::AppStoreVersion::AppVersionState::DEVELOPER_REJECTED
 
         log "Found draft app store version", latest_version.to_json
         return latest_version if latest_version.build&.version == build_number
@@ -753,7 +768,7 @@ module AppStore
       {
         id: version.id,
         version_string: version.version_string,
-        status: version.app_store_state,
+        status: version.app_version_state,
         release_date: version.created_date,
         build_number: version.build&.version,
         localizations: build_localizations(fetch_localizations(version))
@@ -778,7 +793,9 @@ module AppStore
       {
         id: version.id,
         version_name: version.version_string,
-        app_store_state: version.app_store_state,
+        # Key kept as app_store_state for payload-contract stability; value now
+        # sourced from the non-deprecated appVersionState attribute.
+        app_store_state: version.app_version_state,
         release_type: version.release_type,
         earliest_release_date: version.earliest_release_date,
         downloadable: version.downloadable,
