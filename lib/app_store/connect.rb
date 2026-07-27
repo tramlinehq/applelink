@@ -244,14 +244,16 @@ module AppStore
         end
 
         # Apple lets an app-version submission coexist with an items-only submission (In-App
-        # Events, custom product pages, experiments). So only an in-progress review that
-        # actually contains an app version blocks submitting this version - a non-version
-        # review in progress (e.g. an In-App Event) must not. Up to two in-progress
-        # submissions can coexist, so every one of them must be version-free to proceed.
-        in_progress = in_progress_review_submissions
-        raise ReviewAlreadyInProgressError if in_progress.any? { |sub| sub.dig("relationships", "appStoreVersionForReview", "data") }
+        # Events, custom product pages, experiments, standalone subscription/IAP reviews).
+        # So only an in-progress review that actually carries an app version under review
+        # blocks submitting this version. The appStoreVersionForReview linkage alone can't
+        # tell: ASC also links items-only submissions to the app's LIVE (READY_FOR_SALE)
+        # version, so the linked version's state decides. Up to two in-progress submissions
+        # can coexist, so every one of them must be version-free to proceed.
+        in_progress, linked_versions = in_progress_review_submissions
+        raise ReviewAlreadyInProgressError if in_progress.any? { |sub| version_review_in_progress?(sub, linked_versions) }
         if in_progress.any?
-          log "In-progress review submission has no app version; proceeding with a separate version submission", {submission_ids: in_progress.map { |sub| sub["id"] }}
+          log "In-progress review submissions carry no app version under review; proceeding with a separate version submission", {submission_ids: in_progress.map { |sub| sub["id"] }}
         end
 
         submission = app.get_ready_review_submission(platform: IOS_PLATFORM, includes: "items")
@@ -666,18 +668,36 @@ module AppStore
       responses.dig(0, "relationships", "appStoreVersion", "data")
     end
 
-    # fetch all in-progress review submissions as raw hashes, with appStoreVersionForReview
-    # included so its relationship linkage ("data") distinguishes a submission that carries
-    # an app version from an items-only one (In-App Events, custom product pages,
-    # experiments). Raw bodies instead of Spaceship models because Spaceship drops
-    # relationships it can't inflate.
+    # fetch all in-progress review submissions as raw hashes, plus the appStoreVersions
+    # resources their appStoreVersionForReview relationships point at (carried in the same
+    # response's `included` payload, so still one call). Raw bodies instead of Spaceship
+    # models because Spaceship drops relationships and includes it can't inflate.
     # no of api calls: 1
     def in_progress_review_submissions
-      api.get_review_submissions(
+      responses = api.get_review_submissions(
         app_id: app.id,
         filter: {state: IN_PROGRESS_REVIEW_STATES, platform: IOS_PLATFORM},
         includes: "appStoreVersionForReview"
-      ).all_pages.flat_map { |response| response.body["data"] || [] }
+      ).all_pages
+      submissions = responses.flat_map { |response| response.body["data"] || [] }
+      linked_versions = responses
+        .flat_map { |response| response.body["included"] || [] }
+        .select { |resource| resource["type"] == "appStoreVersions" }
+      [submissions, linked_versions]
+    end
+
+    # A review submission blocks a new app-version submission only if it actually carries
+    # an app version under review. The appStoreVersionForReview linkage alone is not
+    # enough: for items-only submissions (e.g. a standalone subscription review) ASC still
+    # links the app's live READY_FOR_SALE version. So a submission blocks only when its
+    # linked version resolves to a non-live state; an unresolvable linkage stays blocking
+    # (fail-closed, same as the pre-#44 behaviour).
+    def version_review_in_progress?(submission, linked_versions)
+      linkage = submission.dig("relationships", "appStoreVersionForReview", "data")
+      return false unless linkage
+      linked_version = linked_versions.find { |version| version["id"] == linkage["id"] }
+      return true unless linked_version
+      !LIVE_RELEASE_STATES.include?(linked_version.dig("attributes", "appStoreState"))
     end
 
     def get_review_submission_items(submission_id, includes)
