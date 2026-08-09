@@ -704,15 +704,15 @@ module AppStore
     # A review submission blocks a new app-version submission only if it actually carries
     # an app version under review. The appStoreVersionForReview linkage alone is not
     # enough: for items-only submissions (e.g. a standalone subscription review) ASC still
-    # links the app's live READY_FOR_SALE version. So a submission blocks only when its
-    # linked version resolves to a non-live state; an unresolvable linkage stays blocking
+    # links the app's live (READY_FOR_DISTRIBUTION) version. So a submission blocks only when
+    # its linked version resolves to a non-live state; an unresolvable linkage stays blocking
     # (fail-closed, same as the pre-#44 behaviour).
     def version_review_in_progress?(submission, linked_versions)
       linkage = submission.dig("relationships", "appStoreVersionForReview", "data")
       return false unless linkage
       linked_version = linked_versions.find { |version| version["id"] == linkage["id"] }
       return true unless linked_version
-      !LIVE_RELEASE_STATES.include?(linked_version.dig("attributes", "appStoreState"))
+      !LIVE_RELEASE_STATES.include?(linked_version.dig("attributes", "appVersionState"))
     end
 
     def get_review_submission_items(submission_id, includes)
