@@ -1,7 +1,7 @@
 # syntax = docker/dockerfile:1
 
-ARG RUBY_VERSION=3.2.0
-ARG DISTRO_NAME=bullseye
+ARG RUBY_VERSION=3.2.11
+ARG DISTRO_NAME=trixie
 
 # --- Build stage ---
 FROM ruby:$RUBY_VERSION-slim-$DISTRO_NAME AS build
@@ -23,6 +23,7 @@ FROM ruby:$RUBY_VERSION-slim-$DISTRO_NAME
 WORKDIR /applelink
 
 RUN apt-get update -qq && \
+    DEBIAN_FRONTEND=noninteractive apt-get -yq dist-upgrade && \
     apt-get install --no-install-recommends -y curl libjemalloc2 libvips jq && \
     rm -rf /var/lib/apt/lists/*
 
@@ -30,6 +31,9 @@ COPY --from=build /usr/local/bundle /usr/local/bundle
 COPY --from=build /applelink /applelink
 
 ENV LD_PRELOAD=libjemalloc.so.2
+# excon (pinned < 1.0 by fastlane) otherwise adds its own bundled cacert.pem on
+# top of the system store, which keeps trusting CAs Debian has since removed.
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 EXPOSE 4000
 
