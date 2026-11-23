@@ -7,6 +7,13 @@ module Rack
       [401, headers, [body]]
     end
 
+    def return_forbidden_error(message)
+      body = {error: message}.to_json
+      headers = {"Content-Type" => "application/json", "Content-Length" => body.bytesize.to_s}
+
+      [403, headers, [body]]
+    end
+
     def return_not_found_error(message)
       body = {error: message}.to_json
       headers = {"Content-Type" => "application/json", "Content-Length" => body.bytesize.to_s}

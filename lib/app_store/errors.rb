@@ -289,6 +289,30 @@ module AppStore
     end
   end
 
+  class AgreementMissingError < StandardError
+    MSG = "A required Apple agreement is missing or has expired. The Account Holder must accept it in App Store Connect (Business) before App Store Connect API calls can succeed."
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:app_store_connect_api, :agreement_missing, MSG)
+    end
+  end
+
+  class ApiKeyForbiddenError < StandardError
+    MSG = "The App Store Connect API key is not allowed to make this request. Give the key the App Manager or Admin role in App Store Connect (Users and Access > Integrations)."
+
+    def initialize(msg = MSG)
+      super
+    end
+
+    def as_json
+      AppStore.error_as_json(:app_store_connect_api, :forbidden, MSG)
+    end
+  end
+
   # 404
   NOT_FOUND_ERRORS = [
     AppStore::AppNotFoundError,
