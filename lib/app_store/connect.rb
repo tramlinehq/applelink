@@ -141,8 +141,7 @@ module AppStore
         if locale
           api.patch_beta_build_localizations(localization_id: locale.id, attributes: locale_params)
         else
-          attributes[:locale] = "en-US"
-          api.post_beta_build_localizations(build_id: build.id, attributes: locale_params)
+          api.post_beta_build_localizations(build_id: build.id, attributes: locale_params.merge(locale: "en-US"))
         end
       end
     end
