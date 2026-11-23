@@ -11,6 +11,8 @@ module Spaceship
     attr_reader :text
     attr_reader :duration
     attr_reader :expiration
+    # Spaceship picks the API host from this: nil means App Store Connect, not the enterprise API.
+    attr_reader :in_house
 
     def self.from(_hash: nil, _filepath: nil)
       raise NotImplementedError
