@@ -42,6 +42,9 @@ module AppStore
     def self.halt_release(**params) = new(**params).halt_release
 
     MAX_RETRIES = 3
+    # Spaceship's request clients no longer put the API version in the host, so
+    # paths we pass to them directly have to carry it.
+    ASC_API_VERSION = "v1"
     RETRY_BASE_SLEEP_SECONDS = 1
     IOS_PLATFORM = Spaceship::ConnectAPI::Platform::IOS
     VERSION_DATA_INCLUDES = %w[build appStoreVersionPhasedRelease appStoreVersionSubmission].join(",").freeze
@@ -152,7 +155,7 @@ module AppStore
           limit: 1,
           filter: {app: app.id}
         }
-        build = api.test_flight_request_client.get("builds", params)&.first
+        build = api.test_flight_request_client.get("#{ASC_API_VERSION}/builds", params)&.first
         raise BuildNotFoundError.new("No build found for the app") unless build
         build_data(build)
       end
@@ -387,7 +390,7 @@ module AppStore
           }
         }
 
-        api.test_flight_request_client.post("appAvailabilities", body)
+        api.test_flight_request_client.post("#{ASC_API_VERSION}/appAvailabilities", body)
       end
     end
 
@@ -483,7 +486,7 @@ module AppStore
       body = {data: data}
 
       log "Creating app store version with ", {body: body}
-      api.tunes_request_client.post("appStoreVersions", body)
+      api.tunes_request_client.post("#{ASC_API_VERSION}/appStoreVersions", body)
 
       execute_with_retry(AppStore::VersionNotFoundError, sleep_seconds: 15, max_retries: 10) do
         log("Fetching the created app store version")
@@ -504,7 +507,7 @@ module AppStore
         }
 
         log "Updating app store version details with ", {body: body, attempts: attempts}
-        api.tunes_request_client.patch("appStoreVersions/#{app_store_version.id}", body)
+        api.tunes_request_client.patch("#{ASC_API_VERSION}/appStoreVersions/#{app_store_version.id}", body)
 
         app_store_version
       end
